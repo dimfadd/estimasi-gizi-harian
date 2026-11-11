@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { buildPlan, sanitizeInput, type PlanInput } from "@/lib/nutrition";
+import { CODE_KEY, CODE_RE, store, type DbMode } from "@/lib/storage";
 
 interface Entry {
   id: number | string;
@@ -11,26 +12,7 @@ interface Entry {
   created_at: string;
 }
 
-const CODE_KEY = "sekepal.family";
 const LOCAL_KEY = "sekepal.entries";
-const CODE_RE = /^[a-z0-9-]{4,32}$/;
-
-const store = {
-  get(key: string) {
-    try {
-      return localStorage.getItem(key);
-    } catch {
-      return null;
-    }
-  },
-  set(key: string, val: string) {
-    try {
-      localStorage.setItem(key, val);
-    } catch {
-      /* mode privat: abaikan */
-    }
-  },
-};
 
 function localEntries(): Entry[] {
   try {
@@ -55,10 +37,20 @@ function Spark({ pts }: { pts: number[] }) {
   );
 }
 
-export default function Family({ input, onLoad }: { input: PlanInput; onLoad: (i: PlanInput) => void }) {
-  const [code, setCode] = useState("");
+export default function Family({
+  input,
+  onLoad,
+  code,
+  setCode,
+  mode,
+}: {
+  input: PlanInput;
+  onLoad: (i: PlanInput) => void;
+  code: string;
+  setCode: (c: string) => void;
+  mode: DbMode;
+}) {
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [mode, setMode] = useState<"db" | "local" | "unknown">("unknown");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err" | "info"; text: string } | null>(null);
 
@@ -69,14 +61,8 @@ export default function Family({ input, onLoad }: { input: PlanInput; onLoad: (i
     }
     try {
       const res = await fetch(`/api/entries?family=${encodeURIComponent(c)}`);
-      if (res.status === 503) {
-        setMode("local");
-        setEntries(localEntries());
-        return;
-      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Gagal memuat");
-      setMode("db");
       setEntries(data.entries);
     } catch (e) {
       setMsg({ kind: "err", text: e instanceof Error ? e.message : "Gagal memuat" });
@@ -84,19 +70,10 @@ export default function Family({ input, onLoad }: { input: PlanInput; onLoad: (i
   }, []);
 
   useEffect(() => {
-    const saved = store.get(CODE_KEY) ?? "";
-    setCode(saved);
-    if (saved) load(saved);
-    else
-      fetch("/api/entries?family=cek-koneksi")
-        .then((r) => {
-          if (r.status === 503) {
-            setMode("local");
-            setEntries(localEntries());
-          } else setMode("db");
-        })
-        .catch(() => setMode("local"));
-  }, [load]);
+    if (mode === "local") setEntries(localEntries());
+    else if (mode === "db") load(code);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, load]);
 
   const save = async () => {
     setMsg(null);
@@ -170,13 +147,15 @@ export default function Family({ input, onLoad }: { input: PlanInput; onLoad: (i
   const randomCode = () => {
     const c = `keluarga-${Math.random().toString(36).slice(2, 7)}`;
     setCode(c);
+    store.set(CODE_KEY, c);
+    setEntries([]);
   };
 
   return (
     <section className="section" id="keluarga">
       <div className="wrap">
         <div className="sec-head">
-          <span className="idx">07</span>
+          <span className="idx">08</span>
           <h2>Simpan &amp; pantau keluarga</h2>
           <p>
             Simpan tiap kali timbang (seminggu sekali cukup). Riwayat beratnya muncul di kartu masing-masing. Satu kode untuk satu rumah; siapa pun
@@ -196,9 +175,15 @@ export default function Family({ input, onLoad }: { input: PlanInput; onLoad: (i
                     className="text-input"
                     value={code}
                     placeholder="mis. rumah-cibubur"
-                    onChange={(e) => setCode(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                    onChange={(e) => setCode(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 32))}
                     onBlur={() => {
                       if (CODE_RE.test(code)) {
+                        store.set(CODE_KEY, code);
+                        load(code);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && CODE_RE.test(code)) {
                         store.set(CODE_KEY, code);
                         load(code);
                       }

@@ -196,6 +196,27 @@ const FOOD_ART: Record<string, () => ReactNode> = {
       <circle cx="28" cy="29" r="2.5" fill="#F8CC6E" />
     </>
   ),
+  putih_telur: () => (
+    <>
+      <path d="M8 34 q-2 -16 14 -18 q6 -8 18 -4 q14 2 16 16 q4 14 -10 18 q-10 6 -24 2 q-14 -2 -14 -14 z" fill="#FFFFFF" {...line} />
+      <path d="M20 30 q4 -6 10 -6" stroke="#E4DFD3" strokeWidth="3" strokeLinecap="round" fill="none" />
+    </>
+  ),
+  edamame: () => (
+    <>
+      {[
+        [10, 40, -25],
+        [22, 22, 10],
+        [30, 44, -5],
+      ].map(([x, y, r], i) => (
+        <g key={i} transform={`rotate(${r} ${x + 14} ${y})`}>
+          <path d={`M${x} ${y} q0 -8 9 -8 q5 0 7 4 q2 -4 7 -4 q9 0 9 8 q0 8 -9 8 q-5 0 -7 -4 q-2 4 -7 4 q-9 0 -9 -8 z`} fill="#7DAA4F" {...line} />
+          <circle cx={x + 8} cy={y} r="2.6" fill="#A9CF7A" />
+          <circle cx={x + 24} cy={y} r="2.6" fill="#A9CF7A" />
+        </g>
+      ))}
+    </>
+  ),
   dada_ayam: () => (
     <>
       <path d="M8 38 q0 -20 24 -24 q22 -2 24 14 q2 16 -22 22 q-26 4 -26 -12 z" fill="#E9BE95" {...line} />

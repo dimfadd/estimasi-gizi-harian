@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { Exercise, Goal, Pace, PlanInput, Work } from "@/lib/nutrition";
 import { ActivityIcon, GoalIcon } from "./art";
 
-function Stepper({
+export function Stepper({
   id,
   value,
   onChange,

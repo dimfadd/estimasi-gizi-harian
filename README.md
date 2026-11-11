@@ -6,7 +6,8 @@ Kalkulator kebutuhan gizi harian yang hasilnya dalam ukuran tangan: kepal nasi, 
 
 - Formulir data diri, hasil berubah langsung saat diisi
 - Model tubuh 3D (three.js) dengan slider bentuk sekarang → target
-- Jatah sehari: kalori, protein/karbo/lemak, dan versi tangannya
+- Jatah sehari: kalori, protein/karbo/lemak/serat, dan versi tangannya
+- Catat makan: input per tanggal & waktu makan pakai kepal/telapak/butir/ekor (bisa centang "digoreng"), indikator kalori/protein/serat/karbo/lemak terhadap target, grafik 7 hari
 - Isi piring per sarapan/siang/malam: pilih karbo dan lauk, porsi nasi menyesuaikan lauk supaya kalori tetap pas
 - Camilan: jatah camilan dan "camilan jebakan" dalam menit jalan cepat
 - Perkiraan waktu sampai berat target
@@ -20,7 +21,7 @@ Rumus: `lib/nutrition.ts`. Data makanan & ukuran porsi: `lib/foods.ts`. Penjelas
 2. Di project Vercel: **Storage → Create Database → Neon (Postgres)**, plan Free, lalu Connect ke project ini. Vercel otomatis menambahkan `DATABASE_URL`.
 3. **Deployments → Redeploy** supaya env var terbaca.
 
-Tabel dibuat otomatis saat data pertama disimpan (skema ada di `db/schema.sql`). Tanpa database, situs tetap jalan dan data disimpan di browser masing-masing.
+Tabel `sekepal_entries` dan `sekepal_logs` dibuat otomatis saat data pertama disimpan (skema ada di `db/schema.sql`). Tanpa database, situs tetap jalan dan data disimpan di browser masing-masing.
 
 ## Lokal
 

@@ -215,13 +215,13 @@ export function plateTotals(meal: Meal, carbId: string, proteinKey: string) {
   const parts: Portion[] = [meal.veg, pl.oil, ...(pl.protein?.parts ?? [])];
   const carb = pl.carbOptions.find((o) => o.foodId === carbId) ?? pl.carbOptions[0];
   if (carb) parts.push(carb);
-  let kcal = 0, p = 0, c = 0, f = 0;
+  let kcal = 0, p = 0, c = 0, f = 0, fb = 0;
   for (const part of parts) {
     const food = FOODS[part.foodId];
     const k = part.grams / food.grams;
-    kcal += food.kcal * k; p += food.p * k; c += food.c * k; f += food.f * k;
+    kcal += food.kcal * k; p += food.p * k; c += food.c * k; f += food.f * k; fb += food.fb * k;
   }
-  return { kcal: Math.round(kcal), p: Math.round(p), c: Math.round(c), f: Math.round(f) };
+  return { kcal: Math.round(kcal), p: Math.round(p), c: Math.round(c), f: Math.round(f), fb: Math.round(fb) };
 }
 
 export function buildPlan(input: PlanInput): Plan {

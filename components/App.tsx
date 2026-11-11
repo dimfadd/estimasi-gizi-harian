@@ -6,6 +6,8 @@ import { bmiCategory, bmiOf, bodyFatEstimate, buildPlan, sanitizeInput, type Pla
 import type { BodyShape } from "./Body3D";
 import Family from "./Family";
 import Form from "./Form";
+import Tracker from "./Tracker";
+import { CODE_KEY, store, type DbMode } from "@/lib/storage";
 import { Daily, HandGuide, Journey, Meals, Method, Snacks } from "./Results";
 
 const Body3D = dynamic(() => import("./Body3D"), {
@@ -32,7 +34,17 @@ const DRAFT_KEY = "sekepal.draft";
 export default function App() {
   const [input, setInput] = useState<PlanInput>(DEFAULT);
   const [t, setT] = useState(0);
+  const [code, setCode] = useState("");
+  const [mode, setMode] = useState<DbMode>("unknown");
   const loaded = useRef(false);
+
+  // kode keluarga + cek apakah database tersambung (503 = belum)
+  useEffect(() => {
+    setCode(store.get(CODE_KEY) ?? "");
+    fetch("/api/entries?family=cek-koneksi")
+      .then((r) => setMode(r.status === 503 ? "local" : "db"))
+      .catch(() => setMode("local"));
+  }, []);
 
   // ingat isian terakhir di browser ini
   useEffect(() => {
@@ -91,6 +103,7 @@ export default function App() {
           </div>
           <nav aria-label="Bagian">
             <a href="#jatah">Jatah</a>
+            <a href="#catat">Catat makan</a>
             <a href="#piring">Isi piring</a>
             <a href="#camilan">Camilan</a>
             <a href="#keluarga">Keluarga</a>
@@ -152,11 +165,12 @@ export default function App() {
         </section>
 
         <Daily plan={plan} />
+        <Tracker plan={plan} code={code} setCode={setCode} mode={mode} />
         <HandGuide plan={plan} />
         <Meals plan={plan} />
         <Snacks plan={plan} />
         <Journey plan={plan} />
-        <Family input={input} onLoad={loadMember} />
+        <Family input={input} onLoad={loadMember} code={code} setCode={setCode} mode={mode} />
         <Method plan={plan} />
       </main>
 

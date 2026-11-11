@@ -163,7 +163,7 @@ export function HandGuide({ plan }: { plan: Plan }) {
   return (
     <section className="section" id="tangan">
       <div className="wrap">
-        <Head idx="03" title="Cara menakar pakai tangan">
+        <Head idx="04" title="Cara menakar pakai tangan">
           Tangan ikut besar kalau badan besar, jadi takarannya otomatis menyesuaikan. Angka gram di bawah sudah disesuaikan dengan
           tinggi dan jenis kelaminmu.
         </Head>
@@ -267,7 +267,7 @@ function MealView({ meal }: { meal: Meal }) {
             Satu piring ≈ <b>{n0(totals.kcal)}</b> kkal
           </span>
           <span>
-            protein <b>{totals.p}</b> g
+            protein <b>{totals.p}</b> g · serat <b>{totals.fb}</b> g
           </span>
         </div>
       </div>
@@ -341,7 +341,7 @@ export function Meals({ plan }: { plan: Plan }) {
   return (
     <section className="section" id="piring">
       <div className="wrap">
-        <Head idx="04" title="Isi piring">
+        <Head idx="05" title="Isi piring">
           Separuh piring sayur, seperempat nasi, seperempat lauk. Pilih lauk yang ada di rumah; porsi nasinya ikut menyesuaikan supaya
           kalorinya tetap pas.
         </Head>
@@ -370,7 +370,7 @@ export function Snacks({ plan }: { plan: Plan }) {
   return (
     <section className="section" id="camilan">
       <div className="wrap">
-        <Head idx="05" title="Camilan">
+        <Head idx="06" title="Camilan">
           Ngemil boleh, asal masuk jatah. Yang sering bikin defisit gagal bukan nasinya, tapi minuman manis dan gorengan di sela kerja.
         </Head>
         <div className="card snack-budget">
@@ -522,7 +522,7 @@ export function Journey({ plan }: { plan: Plan }) {
   return (
     <section className="section" id="perjalanan">
       <div className="wrap">
-        <Head idx="06" title="Perkiraan perjalanan" />
+        <Head idx="07" title="Perkiraan perjalanan" />
         <div className="journey">
           <div className="card chart-card">
             {hasChart ? (
@@ -574,7 +574,7 @@ export function Method({ plan }: { plan: Plan }) {
   return (
     <section className="section" id="cara-hitung">
       <div className="wrap">
-        <Head idx="08" title="Cara hitungnya">
+        <Head idx="09" title="Cara hitungnya">
           Semua angka di sini perkiraan. Tubuh tiap orang berbeda ±10%; sesuaikan setelah 2–3 minggu berdasarkan hasil timbangan.
         </Head>
         <div className="card method">
@@ -606,6 +606,13 @@ export function Method({ plan }: { plan: Plan }) {
             <p>
               Persen lemak diperkirakan dari BMI, umur, dan jenis kelamin (Deurenberg, 1991): saat ini ±{Math.round(plan.bodyFatPct)}%. Rumus ini
               meleset ±5%, terutama untuk orang yang berotot. Bentuk 3D hanya ilustrasi dari angka ini.
+            </p>
+          </details>
+          <details>
+            <summary>Serat</summary>
+            <p>
+              Target serat 14 g per 1.000 kkal (pedoman AKG/IOM), untukmu ±<b className="num">{plan.fiberG}</b> g. Nasi putih hampir tidak
+              berserat; sumber utamanya sayur, buah, nasi merah, ubi, jagung, oat, dan kacang-kacangan.
             </p>
           </details>
           <details>
