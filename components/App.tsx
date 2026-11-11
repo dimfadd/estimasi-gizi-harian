@@ -7,7 +7,9 @@ import type { BodyShape } from "./Body3D";
 import Family from "./Family";
 import Form from "./Form";
 import Tracker from "./Tracker";
-import { CODE_KEY, store, type DbMode } from "@/lib/storage";
+import InstallButton from "./InstallButton";
+import MemberBar from "./MemberBar";
+import { useFamily } from "./useFamily";
 import { Daily, HandGuide, Journey, Meals, Method, Snacks } from "./Results";
 
 const Body3D = dynamic(() => import("./Body3D"), {
@@ -34,17 +36,8 @@ const DRAFT_KEY = "sekepal.draft";
 export default function App() {
   const [input, setInput] = useState<PlanInput>(DEFAULT);
   const [t, setT] = useState(0);
-  const [code, setCode] = useState("");
-  const [mode, setMode] = useState<DbMode>("unknown");
+  const fam = useFamily();
   const loaded = useRef(false);
-
-  // kode keluarga + cek apakah database tersambung (503 = belum)
-  useEffect(() => {
-    setCode(store.get(CODE_KEY) ?? "");
-    fetch("/api/entries?family=cek-koneksi")
-      .then((r) => setMode(r.status === 503 ? "local" : "db"))
-      .catch(() => setMode("local"));
-  }, []);
 
   // ingat isian terakhir di browser ini
   useEffect(() => {
@@ -86,7 +79,17 @@ export default function App() {
   const set = (patch: Partial<PlanInput>) => setInput((s) => ({ ...s, ...patch }));
   const loadMember = (i: PlanInput) => {
     setInput(i);
+    setT(0);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const pickMember = (i: PlanInput) => {
+    setInput(i);
+    setT(0);
+  };
+  const newMember = () => {
+    setInput({ ...DEFAULT, name: "" });
+    setT(0);
+    setTimeout(() => document.getElementById("name")?.focus(), 50);
   };
 
   return (
@@ -108,8 +111,10 @@ export default function App() {
             <a href="#camilan">Camilan</a>
             <a href="#keluarga">Keluarga</a>
           </nav>
+          <InstallButton />
         </div>
       </header>
+      <MemberBar fam={fam} current={input.name} onPick={pickMember} onNew={newMember} />
 
       <main>
         <section className="section">
@@ -165,12 +170,12 @@ export default function App() {
         </section>
 
         <Daily plan={plan} />
-        <Tracker plan={plan} code={code} setCode={setCode} mode={mode} />
+        <Tracker plan={plan} code={fam.code} setCode={fam.setCode} mode={fam.mode} />
         <HandGuide plan={plan} />
         <Meals plan={plan} />
         <Snacks plan={plan} />
         <Journey plan={plan} />
-        <Family input={input} onLoad={loadMember} code={code} setCode={setCode} mode={mode} />
+        <Family input={input} onLoad={loadMember} fam={fam} />
         <Method plan={plan} />
       </main>
 

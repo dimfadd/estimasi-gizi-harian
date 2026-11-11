@@ -15,7 +15,7 @@ import {
   type Nutrients,
 } from "@/lib/log";
 import { fmtAmount, plateFor, type Plan } from "@/lib/nutrition";
-import { CODE_KEY, CODE_RE, store, type DbMode } from "@/lib/storage";
+import { CODE_RE, store, type DbMode } from "@/lib/storage";
 import { FoodIcon, HandIcon, type HandKind } from "./art";
 import { Stepper } from "./Form";
 
@@ -323,9 +323,7 @@ export default function Tracker({
               type="button"
               className="linkish"
               onClick={() => {
-                const c = `keluarga-${Math.random().toString(36).slice(2, 7)}`;
-                store.set(CODE_KEY, c);
-                setCode(c);
+                setCode(`keluarga-${Math.random().toString(36).slice(2, 7)}`);
               }}
             >
               buat kode acak sekarang

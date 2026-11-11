@@ -23,6 +23,12 @@ Rumus: `lib/nutrition.ts`. Data makanan & ukuran porsi: `lib/foods.ts`. Penjelas
 
 Tabel `sekepal_entries` dan `sekepal_logs` dibuat otomatis saat data pertama disimpan (skema ada di `db/schema.sql`). Tanpa database, situs tetap jalan dan data disimpan di browser masing-masing.
 
+## Pakai di HP
+
+- Bar di bagian atas menampilkan anggota keluarga yang sudah disimpan. Ketuk nama untuk membuka datanya.
+- Kode keluarga hanya diingat per browser. Di HP baru, isi kode di bar atas, atau dari laptop tekan **kirim ke HP** untuk mengirim tautan `/?k=kode`.
+- Bisa dipasang seperti aplikasi (PWA): Android/Chrome → tombol **Pasang di HP** di pojok kanan atas; iPhone/Safari → Bagikan → Tambah ke Layar Utama.
+
 ## Lokal
 
 ```bash

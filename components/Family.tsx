@@ -1,26 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { buildPlan, sanitizeInput, type PlanInput } from "@/lib/nutrition";
-import { CODE_KEY, CODE_RE, store, type DbMode } from "@/lib/storage";
-
-interface Entry {
-  id: number | string;
-  member_name: string;
-  input: PlanInput;
-  output: { targetKcal: number; proteinG: number; targetWeightKg: number };
-  created_at: string;
-}
-
-const LOCAL_KEY = "sekepal.entries";
-
-function localEntries(): Entry[] {
-  try {
-    return JSON.parse(store.get(LOCAL_KEY) ?? "[]");
-  } catch {
-    return [];
-  }
-}
+import { CODE_RE, store } from "@/lib/storage";
+import { LOCAL_ENTRIES, localEntries, type Entry, type FamilyState } from "./useFamily";
 
 function Spark({ pts }: { pts: number[] }) {
   if (pts.length < 2) return null;
@@ -37,43 +20,10 @@ function Spark({ pts }: { pts: number[] }) {
   );
 }
 
-export default function Family({
-  input,
-  onLoad,
-  code,
-  setCode,
-  mode,
-}: {
-  input: PlanInput;
-  onLoad: (i: PlanInput) => void;
-  code: string;
-  setCode: (c: string) => void;
-  mode: DbMode;
-}) {
-  const [entries, setEntries] = useState<Entry[]>([]);
+export default function Family({ input, onLoad, fam }: { input: PlanInput; onLoad: (i: PlanInput) => void; fam: FamilyState }) {
+  const { code, setCode, mode, setEntries, members, reload } = fam;
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err" | "info"; text: string } | null>(null);
-
-  const load = useCallback(async (c: string) => {
-    if (!CODE_RE.test(c)) {
-      setEntries([]);
-      return;
-    }
-    try {
-      const res = await fetch(`/api/entries?family=${encodeURIComponent(c)}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Gagal memuat");
-      setEntries(data.entries);
-    } catch (e) {
-      setMsg({ kind: "err", text: e instanceof Error ? e.message : "Gagal memuat" });
-    }
-  }, []);
-
-  useEffect(() => {
-    if (mode === "local") setEntries(localEntries());
-    else if (mode === "db") load(code);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, load]);
 
   const save = async () => {
     setMsg(null);
@@ -98,10 +48,9 @@ export default function Family({
           created_at: new Date().toISOString(),
         };
         const all = [e, ...localEntries()].slice(0, 300);
-        store.set(LOCAL_KEY, JSON.stringify(all));
+        store.set(LOCAL_ENTRIES, JSON.stringify(all));
         setEntries(all);
       } else {
-        store.set(CODE_KEY, code);
         const res = await fetch("/api/entries", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -123,7 +72,7 @@ export default function Family({
     if (!confirm(`Hapus catatan ${e.member_name} tanggal ${new Date(e.created_at).toLocaleDateString("id-ID")}?`)) return;
     if (mode === "local") {
       const all = localEntries().filter((x) => x.id !== e.id);
-      store.set(LOCAL_KEY, JSON.stringify(all));
+      store.set(LOCAL_ENTRIES, JSON.stringify(all));
       setEntries(all);
       return;
     }
@@ -132,23 +81,9 @@ export default function Family({
     else setMsg({ kind: "err", text: "Gagal menghapus" });
   };
 
-  const members = useMemo(() => {
-    const by = new Map<string, Entry[]>();
-    for (const e of entries) {
-      const k = e.member_name.trim().toLowerCase();
-      by.set(k, [...(by.get(k) ?? []), e]);
-    }
-    return [...by.values()].map((list) => {
-      const sorted = [...list].sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at));
-      return { latest: sorted[sorted.length - 1], weights: sorted.map((e) => e.input.weightKg), count: sorted.length };
-    });
-  }, [entries]);
-
   const randomCode = () => {
     const c = `keluarga-${Math.random().toString(36).slice(2, 7)}`;
     setCode(c);
-    store.set(CODE_KEY, c);
-    setEntries([]);
   };
 
   return (
@@ -176,17 +111,8 @@ export default function Family({
                     value={code}
                     placeholder="mis. rumah-cibubur"
                     onChange={(e) => setCode(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 32))}
-                    onBlur={() => {
-                      if (CODE_RE.test(code)) {
-                        store.set(CODE_KEY, code);
-                        load(code);
-                      }
-                    }}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && CODE_RE.test(code)) {
-                        store.set(CODE_KEY, code);
-                        load(code);
-                      }
+                      if (e.key === "Enter") reload();
                     }}
                   />
                   <button type="button" className="btn ghost" onClick={randomCode} title="Buat kode acak">

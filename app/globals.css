@@ -1575,6 +1575,164 @@ footer.foot {
   }
 }
 
+/* ---------- bar anggota keluarga ---------- */
+
+.member-bar {
+  background: var(--card);
+  border-bottom: 1.5px solid var(--line);
+  padding: 10px 0;
+}
+
+.mb-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mb-chips {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 14px 0 5px;
+  border: 1.5px solid var(--line-2);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 14.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.chip:hover {
+  border-color: var(--ink-2);
+}
+
+.chip .av {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--turmeric-soft);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-family: var(--mono);
+}
+
+.chip[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.chip[aria-pressed="true"] .av {
+  background: var(--chili);
+  color: #fff;
+}
+
+.chip.add {
+  padding: 0 14px;
+  border-style: dashed;
+  color: var(--ink-2);
+  background: transparent;
+}
+
+.mb-note {
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+.mb-note b {
+  color: var(--ink);
+}
+
+.mb-tools {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  font-size: 13px;
+}
+
+.mb-code {
+  display: flex;
+  align-items: center;
+  gap: 10px 14px;
+  flex-wrap: wrap;
+  font-size: 14px;
+}
+
+.mb-code-in {
+  display: flex;
+  gap: 8px;
+  flex: 1 1 280px;
+  max-width: 420px;
+}
+
+.mb-code-in .text-input {
+  height: 40px;
+}
+
+.mb-code-in .btn {
+  height: 40px;
+}
+
+.install {
+  position: relative;
+  margin-left: 8px;
+}
+
+.top .install .btn.small {
+  height: 36px;
+  font-size: 13.5px;
+  padding: 0 12px;
+}
+
+.install-help {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 270px;
+  padding: 14px;
+  z-index: 20;
+  font-size: 14px;
+}
+
+.install-help ol {
+  margin: 6px 0 8px;
+  padding-left: 18px;
+}
+
+@media (max-width: 640px) {
+  .top .install {
+    margin-left: auto;
+  }
+  .mb-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: 0 -16px;
+    padding: 0 16px;
+    flex-basis: 100%;
+  }
+  .mb-chips::-webkit-scrollbar {
+    display: none;
+  }
+  .mb-tools {
+    width: 100%;
+  }
+}
+
 /* ---------- responsive ---------- */
 
 @media (max-width: 1020px) {
