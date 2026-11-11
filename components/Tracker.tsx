@@ -1,29 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  DRINK_SIZES,
-  SUGAR_G,
-  SUGAR_LIMIT_G,
-  SWEET_LEVELS,
-  sugarOf,
-  type Sweet,
+  customItem,
   LOG_BY_ID,
   LOG_ITEMS,
   MEAL_SLOTS,
+  SUGAR_LIMIT_G,
+  SWEET_LEVELS,
   localDate,
-  nutrientsOf,
   shiftDate,
   slotForHour,
   sumNutrients,
-  type LogGroup,
+  type LogItem,
   type MealSlot,
   type Nutrients,
 } from "@/lib/log";
 import { fmtAmount, plateFor, type Plan } from "@/lib/nutrition";
-import { CODE_RE, store, type DbMode } from "@/lib/storage";
-import { FoodIcon, HandIcon, type HandKind } from "./art";
-import { Stepper } from "./Form";
+import { FoodIcon } from "./art";
+import FoodPicker, { type NewRow, type Recent } from "./FoodPicker";
+import { dayLabel, Meter, n0, Week } from "./TrackerParts";
+import { call } from "./useAccount";
 
 interface LogRow extends Nutrients {
   id: number | string;
@@ -32,302 +29,283 @@ interface LogRow extends Nutrients {
   food_id: string;
   amount: number;
   fried: boolean;
-  sweet?: number | null;
+  sweet: number | null;
+  sugar: number;
 }
 
-type NewRow = { foodId: string; amount: number; fried: boolean; sweet?: Sweet };
-
-const GROUPS: { key: LogGroup; label: string }[] = [
-  { key: "karbo", label: "Nasi & karbo" },
-  { key: "lauk", label: "Lauk" },
-  { key: "sayur", label: "Sayur, buah, minyak" },
-  { key: "minum", label: "Minuman" },
-  { key: "camilan", label: "Camilan" },
-];
-
-const HAND_UNITS = ["kepal", "telapak", "ibu jari", "genggam"];
-const nf = new Intl.NumberFormat("id-ID");
-const n0 = (x: number) => nf.format(Math.round(x));
-
-const localKey = (member: string) => `sekepal.logs.${member}`;
-
-function dayLabel(iso: string, style: "long" | "short" = "long") {
-  const [y, m, d] = iso.split("-").map(Number);
-  const dt = new Date(y, m - 1, d);
-  return style === "long"
-    ? dt.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long" })
-    : dt.toLocaleDateString("id-ID", { weekday: "short" }).replace(".", "");
-}
-
-function UnitIcon({ foodId, size = 40 }: { foodId: string; size?: number }) {
-  const it = LOG_BY_ID[foodId];
-  if (it && HAND_UNITS.includes(it.unit) && foodId !== "sayur") return <HandIcon kind={it.unit as HandKind} size={size} />;
-  return <FoodIcon id={foodId} size={size} />;
-}
-
-/* ---------------------------------------------------------------- meter */
-
-function Meter({
-  label,
-  value,
-  target,
-  unit,
-  color,
-  kind,
-  big,
-}: {
-  label: string;
-  value: number;
-  target: number;
+interface CustomRow {
+  id: string;
+  name: string;
   unit: string;
-  color: string;
-  /** limit = jangan lewat (kalori, lemak); goal = usahakan tercapai (protein, serat) */
-  kind: "limit" | "goal" | "range";
-  big?: boolean;
+  kcal: number;
+  protein: number;
+  carb: number;
+  fat: number;
+  fiber: number;
+}
+
+/** Kecilkan foto di browser sebelum diunggah (±1280 px, JPEG). */
+async function compress(file: File): Promise<Blob> {
+  const img = await createImageBitmap(file);
+  const k = Math.min(1, 1280 / Math.max(img.width, img.height));
+  const c = document.createElement("canvas");
+  c.width = Math.round(img.width * k);
+  c.height = Math.round(img.height * k);
+  c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+  return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("Gagal memproses foto"))), "image/jpeg", 0.82));
+}
+
+function PhotoSample({
+  profileId,
+  date,
+  meal,
+  consented,
+  onConsent,
+}: {
+  profileId: string;
+  date: string;
+  meal: MealSlot;
+  consented: boolean;
+  onConsent: () => Promise<void>;
 }) {
-  const scaleMax = Math.max(target * 1.25, value);
-  const fill = Math.min(100, (value / scaleMax) * 100);
-  const mark = (target / scaleMax) * 100;
-  const diff = value - target;
-  const over = diff > 0;
-  let note: string;
-  let tone = "";
-  if (kind === "goal") {
-    note = over || Math.abs(diff) < target * 0.03 ? "tercapai" : `kurang ${n0(-diff)} ${unit}`;
-    tone = over ? "good" : "";
-  } else if (kind === "limit") {
-    note = over ? `lebih ${n0(diff)} ${unit}` : `sisa ${n0(-diff)} ${unit}`;
-    tone = over && diff > target * 0.05 ? "bad" : "";
-  } else {
-    note = over ? `lebih ${n0(diff)} ${unit}` : `sisa ${n0(-diff)} ${unit}`;
-  }
+  const [ask, setAsk] = useState(false);
+  const [state, setState] = useState<"idle" | "busy" | "done" | string>("idle");
+  const input = useRef<HTMLInputElement>(null);
+
+  const upload = async (file: File) => {
+    setState("busy");
+    try {
+      const fd = new FormData();
+      fd.set("photo", new File([await compress(file)], "piring.jpg", { type: "image/jpeg" }));
+      fd.set("profile", profileId);
+      fd.set("date", date);
+      fd.set("meal", meal);
+      const res = await fetch("/api/samples", { method: "POST", body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Gagal mengunggah");
+      setState("done");
+    } catch (e) {
+      setState(e instanceof Error ? e.message : "Gagal mengunggah");
+    }
+  };
+
+  if (state === "done") return <p className="fine sample-done">Foto terkirim. Terima kasih sudah membantu menguji fitur foto.</p>;
+
   return (
-    <div className={`meter-row${big ? " big" : ""}`}>
-      <div className="meter-top">
-        <span className="meter-label">{label}</span>
-        <span className="meter-val">
-          <b>{n0(value)}</b> / {n0(target)} {unit}
-        </span>
-      </div>
-      <div className="meter-track" role="img" aria-label={`${label} ${n0(value)} dari ${n0(target)} ${unit}`}>
-        <div className="meter-fill" style={{ width: `${fill}%`, background: tone === "bad" ? "var(--chili)" : color }} />
-        <div className="meter-mark" style={{ left: `${mark}%` }} />
-      </div>
-      <span className={`meter-note ${tone}`}>{note}</span>
+    <div className="sample">
+      <input
+        ref={input}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) upload(f);
+          e.target.value = "";
+        }}
+      />
+      {ask && !consented ? (
+        <div className="sample-consent">
+          <p>
+            Foto piring ini beserta catatan isinya disimpan untuk menguji ketepatan fitur pencatat dari foto. Hanya tim Sekepal yang melihatnya,
+            dan kamu bisa mencabut persetujuan serta menghapusnya dengan menghapus akun.
+          </p>
+          <div className="row">
+            <button
+              type="button"
+              className="btn small"
+              onClick={async () => {
+                await onConsent();
+                setAsk(false);
+                input.current?.click();
+              }}
+            >
+              Setuju & pilih foto
+            </button>
+            <button type="button" className="btn ghost small" onClick={() => setAsk(false)}>
+              Batal
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="linkish"
+          disabled={state === "busy"}
+          onClick={() => (consented ? input.current?.click() : setAsk(true))}
+        >
+          {state === "busy" ? "Mengunggah…" : "Bantu uji fitur foto: kirim foto piring ini"}
+        </button>
+      )}
+      {state !== "idle" && state !== "busy" && <div className="status err">{state}</div>}
     </div>
   );
 }
 
-/* ---------------------------------------------------------------- week chart */
-
-function Week({ days, target, selected, onPick }: { days: { date: string; kcal: number }[]; target: number; selected: string; onPick: (d: string) => void }) {
-  const W = 320,
-    H = 120,
-    B = 20,
-    T = 8;
-  const max = Math.max(target * 1.3, ...days.map((d) => d.kcal));
-  const y = (k: number) => T + (1 - k / max) * (H - T - B);
-  const bw = W / days.length;
-  return (
-    <svg className="week" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Kalori 7 hari terakhir">
-      {days.map((d, i) => {
-        const x = i * bw + bw * 0.2;
-        const over = d.kcal > target * 1.05;
-        const sel = d.date === selected;
-        return (
-          <g key={d.date} onClick={() => onPick(d.date)} style={{ cursor: "pointer" }}>
-            <rect x={i * bw} y={0} width={bw} height={H} fill="transparent" />
-            {d.kcal > 0 ? (
-              <rect x={x} y={y(d.kcal)} width={bw * 0.6} height={H - B - y(d.kcal)} rx="3" fill={over ? "#C2412D" : sel ? "#22231E" : "#9C9A8C"} />
-            ) : (
-              <rect x={x} y={H - B - 2} width={bw * 0.6} height={2} fill="#C7BDA8" />
-            )}
-            <text x={x + bw * 0.3} y={H - 5} textAnchor="middle" fontSize="11" fill={sel ? "#22231E" : "#8A897D"} fontWeight={sel ? 700 : 400}>
-              {dayLabel(d.date, "short")}
-            </text>
-          </g>
-        );
-      })}
-      <line x1={0} x2={W} y1={y(target)} y2={y(target)} stroke="#22231E" strokeWidth="1.2" strokeDasharray="4 3" />
-      <text x={W - 2} y={y(target) - 4} textAnchor="end" fontSize="10.5" fill="#57584F" fontFamily="var(--mono)">
-        target {n0(target)}
-      </text>
-    </svg>
-  );
-}
-
-/* ---------------------------------------------------------------- main */
-
 export default function Tracker({
   plan,
-  code,
-  setCode,
-  mode,
+  profileId,
+  samplesEnabled,
+  photoConsent,
+  onPhotoConsent,
   onPlan,
 }: {
   plan: Plan;
-  code: string;
-  setCode: (c: string) => void;
-  mode: DbMode;
+  profileId: string;
+  samplesEnabled: boolean;
+  photoConsent: boolean;
+  onPhotoConsent: () => Promise<void>;
   onPlan?: () => void;
 }) {
-  const { input } = plan;
-  const member = input.name.trim().toLowerCase();
   const [date, setDate] = useState(() => localDate());
   const [slot, setSlot] = useState<MealSlot>(() => slotForHour(new Date().getHours()));
-  const [group, setGroup] = useState<LogGroup>("karbo");
-  const [foodId, setFoodId] = useState("nasi_putih");
-  const [amount, setAmount] = useState(1);
-  const [fried, setFried] = useState(false);
-  const [sweet, setSweet] = useState<Sweet>(2);
   const [logs, setLogs] = useState<LogRow[]>([]);
+  const [recent, setRecent] = useState<Recent[]>([]);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [customs, setCustoms] = useState<CustomRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [note, setNote] = useState("");
 
   const from = shiftDate(date, -6);
-  const ready = member !== "" && (mode === "local" || (mode === "db" && CODE_RE.test(code)));
 
-  const fetchLogs = useCallback(async () => {
-    setErr("");
-    if (!ready) {
-      setLogs([]);
-      return;
-    }
-    if (mode === "local") {
-      setLogs(store.json<LogRow[]>(localKey(member), []).filter((l) => l.date >= from && l.date <= date));
-      return;
-    }
+  const loadLogs = useCallback(async () => {
     try {
-      const qs = new URLSearchParams({ family: code, member, from, to: date });
-      const res = await fetch(`/api/logs?${qs}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Gagal memuat");
-      setLogs(data.logs);
+      const qs = new URLSearchParams({ profile: profileId, from, to: date });
+      setLogs((await call<{ logs: LogRow[] }>(`/api/logs?${qs}`)).logs);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Gagal memuat");
     }
-  }, [ready, mode, member, code, from, date]);
+  }, [profileId, from, date]);
+
+  const loadRecent = useCallback(async () => {
+    try {
+      setRecent((await call<{ recent: Recent[] }>(`/api/recent?profile=${profileId}`)).recent);
+    } catch {}
+  }, [profileId]);
 
   useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
+    loadLogs();
+  }, [loadLogs]);
+  useEffect(() => {
+    loadRecent();
+  }, [loadRecent]);
+  useEffect(() => {
+    call<{ favorites: string[] }>("/api/favorites").then((d) => setFavorites(d.favorites), () => {});
+    call<{ foods: CustomRow[] }>("/api/foods").then((d) => setCustoms(d.foods), () => {});
+  }, []);
 
-  const item = LOG_BY_ID[foodId];
-  const preview = nutrientsOf(foodId, amount, plan.handScale, fried, sweet);
-  const previewSugar = sugarOf(foodId, amount, sweet);
+  const items: LogItem[] = useMemo(() => [...LOG_ITEMS, ...customs.map(customItem)], [customs]);
+  const byId = useMemo(() => Object.fromEntries(items.map((i) => [i.id, i])), [items]);
 
-  const addRows = async (rows: NewRow[], meal: MealSlot = slot) => {
-    if (!ready || rows.length === 0) return;
+  const addRows = async (rows: NewRow[], meal: MealSlot = slot, via = "manual") => {
+    if (rows.length === 0) return false;
     setBusy(true);
     setErr("");
     try {
-      if (mode === "local") {
-        const all = store.json<LogRow[]>(localKey(member), []);
-        const added: LogRow[] = rows.map((r, i) => ({
-          id: `${Date.now()}-${i}`,
-          date,
-          meal,
-          food_id: r.foodId,
-          amount: r.amount,
-          fried: r.fried,
-          sweet: LOG_BY_ID[r.foodId].sweetable ? (r.sweet ?? 0) : null,
-          ...nutrientsOf(r.foodId, r.amount, plan.handScale, r.fried, r.sweet ?? 0)!,
-        }));
-        // simpan maksimal ±90 hari terakhir supaya storage tidak penuh
-        const cutoff = shiftDate(localDate(), -90);
-        store.set(localKey(member), JSON.stringify([...all.filter((l) => l.date >= cutoff), ...added]));
-        setLogs((xs) => [...xs, ...added]);
-      } else {
-        const added: LogRow[] = [];
-        for (const r of rows) {
-          const res = await fetch("/api/logs", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
-              familyCode: code,
-              member,
-              date,
-              meal,
-              foodId: r.foodId,
-              amount: r.amount,
-              fried: r.fried,
-              sweet: r.sweet ?? 0,
-              heightCm: input.heightCm,
-              sex: input.sex,
-            }),
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error ?? "Gagal menyimpan");
-          added.push(data.log);
-        }
-        setLogs((xs) => [...xs, ...added]);
-      }
+      const { logs: added } = await call<{ logs: LogRow[] }>("/api/logs", {
+        method: "POST",
+        json: { profile: profileId, date, meal, via, items: rows },
+      });
+      setLogs((xs) => [...xs, ...added]);
+      if (rows.some((r) => r.foodId !== "air")) loadRecent();
+      return true;
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Gagal menyimpan");
+      return false;
     } finally {
       setBusy(false);
     }
   };
 
   const remove = async (row: LogRow) => {
-    if (mode === "local") {
-      store.set(localKey(member), JSON.stringify(store.json<LogRow[]>(localKey(member), []).filter((l) => l.id !== row.id)));
-      setLogs((xs) => xs.filter((l) => l.id !== row.id));
-      return;
+    setLogs((xs) => xs.filter((l) => l.id !== row.id));
+    try {
+      await call(`/api/logs?id=${row.id}`, { method: "DELETE" });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Gagal menghapus");
+      loadLogs();
     }
-    const res = await fetch(`/api/logs?family=${encodeURIComponent(code)}&id=${row.id}`, { method: "DELETE" });
-    if (res.ok) setLogs((xs) => xs.filter((l) => l.id !== row.id));
-    else setErr("Gagal menghapus");
   };
+
+  const copyYesterday = async () => {
+    setBusy(true);
+    setErr("");
+    try {
+      const { logs: added } = await call<{ logs: LogRow[] }>("/api/logs/copy", {
+        method: "POST",
+        json: { profile: profileId, from: shiftDate(date, -1), to: date, meal: slot },
+      });
+      setLogs((xs) => [...xs, ...added]);
+      setNote(added.length ? `${added.length} makanan disalin dari kemarin.` : `Kemarin tidak ada catatan ${slotLabel}.`);
+      setTimeout(() => setNote(""), 4000);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Gagal menyalin");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleFav = (id: string, on: boolean) => {
+    setFavorites((xs) => (on ? [...xs, id] : xs.filter((x) => x !== id)));
+    call("/api/favorites", { method: "POST", json: { foodId: id, on } }).catch(() => {});
+  };
+
+  const createCustom = async (f: Record<string, unknown>) => {
+    const { food } = await call<{ food: CustomRow }>("/api/foods", { method: "POST", json: f });
+    setCustoms((xs) => [...xs, food]);
+    return customItem(food);
+  };
+
+  const onMiss = useCallback((q: string) => {
+    call("/api/events", { method: "POST", json: { name: "search_miss", q } }).catch(() => {});
+  }, []);
 
   const planMeal = plan.meals.find((m) => m.key === slot);
   const addPlanPlate = () => {
     if (!planMeal) return;
     const pl = plateFor(planMeal, planMeal.defaultProtein);
     const carb = pl.carbOptions.find((o) => o.foodId === planMeal.defaultCarb) ?? pl.carbOptions[0];
-    const rows = [
-      ...(carb ? [{ foodId: carb.foodId, amount: carb.amount, fried: false }] : []),
-      ...(pl.protein?.parts ?? []).map((p) => ({ foodId: p.foodId, amount: p.amount, fried: false })),
-      { foodId: "sayur", amount: planMeal.veg.amount, fried: false },
-      ...(pl.oil.amount > 0 ? [{ foodId: "minyak", amount: pl.oil.amount, fried: false }] : []),
-    ];
-    addRows(rows);
+    addRows(
+      [
+        ...(carb ? [{ foodId: carb.foodId, amount: carb.amount, fried: false }] : []),
+        ...(pl.protein?.parts ?? []).map((p) => ({ foodId: p.foodId, amount: p.amount, fried: false })),
+        { foodId: "sayur", amount: planMeal.veg.amount, fried: false },
+        ...(pl.oil.amount > 0 ? [{ foodId: "minyak", amount: pl.oil.amount, fried: false }] : []),
+      ],
+      slot,
+      "plan",
+    );
   };
 
   const today = logs.filter((l) => l.date === date);
+  const total = sumNutrients(today);
   const water = today.filter((l) => l.food_id === "air");
   const waterGlasses = water.reduce((s, l) => s + Number(l.amount), 0);
-  const sugarG = today.reduce((s, l) => s + sugarOf(l.food_id, Number(l.amount), (l.sweet ?? 0) as Sweet), 0);
-  const addWater = () => addRows([{ foodId: "air", amount: 1, fried: false }], slotForHour(new Date().getHours()));
+  const sugarG = today.reduce((s, l) => s + Number(l.sugar ?? 0), 0);
+  const addWater = () => addRows([{ foodId: "air", amount: 1, fried: false }], slotForHour(new Date().getHours()), "water");
   const removeWater = () => {
     const last = water[water.length - 1];
     if (last) remove(last);
   };
-  const total = sumNutrients(today);
   const days = useMemo(
     () =>
       Array.from({ length: 7 }, (_, i) => {
         const d = shiftDate(date, i - 6);
-        return { date: d, kcal: logs.filter((l) => l.date === d).reduce((s, l) => s + l.kcal, 0) };
+        return { date: d, kcal: logs.filter((l) => l.date === d).reduce((s, l) => s + Number(l.kcal), 0) };
       }),
     [logs, date],
   );
   const budget = (s: MealSlot) => (s === "camilan" ? plan.snackKcal : (plan.meals.find((m) => m.key === s)?.kcal ?? 0));
   const isToday = date === localDate();
-
-  const pickFood = (id: string) => {
-    setFoodId(id);
-    const it = LOG_BY_ID[id];
-    setAmount(1);
-    setFried(false);
-    if (it.sweetable) setSweet(id === "kopi" || id === "teh" ? 2 : id === "kemasan" ? 3 : 1);
-  };
+  const slotLabel = MEAL_SLOTS.find((m) => m.key === slot)!.label.toLowerCase();
 
   return (
     <section className="section" id="catat">
       <div className="wrap">
         <div className="sec-head today-head">
-          <h2>Hari ini</h2>
+          <h2>{isToday ? "Hari ini" : dayLabel(date)}</h2>
           {onPlan && (
             <button type="button" className="linkish" onClick={onPlan}>
               Belum tahu mau makan apa? Lihat isi piring yang disarankan
@@ -335,225 +313,160 @@ export default function Tracker({
           )}
         </div>
 
-        {!member ? (
-          <div className="empty">Isi nama panggilan di formulir atas dulu. Catatan disimpan per nama.</div>
-        ) : mode === "db" && !CODE_RE.test(code) ? (
-          <div className="empty">
-            Catatan disimpan per keluarga. Isi kode keluarga di bagian{" "}
-            <a href="#keluarga" style={{ color: "inherit" }}>
-              Keluarga
-            </a>
-            , atau{" "}
-            <button
-              type="button"
-              className="linkish"
-              onClick={() => {
-                setCode(`keluarga-${Math.random().toString(36).slice(2, 7)}`);
-              }}
-            >
-              buat kode acak sekarang
-            </button>
-            .
-          </div>
-        ) : (
-          <div className="track">
-            <div className="card track-sum">
-              <div className="date-nav">
-                <button type="button" aria-label="Hari sebelumnya" onClick={() => setDate(shiftDate(date, -1))}>
-                  ‹
-                </button>
-                <div>
-                  <b>{dayLabel(date)}</b>
-                  {!isToday && (
-                    <button type="button" className="linkish" onClick={() => setDate(localDate())}>
-                      ke hari ini
-                    </button>
-                  )}
-                </div>
-                <button type="button" aria-label="Hari berikutnya" disabled={isToday} onClick={() => setDate(shiftDate(date, 1))}>
-                  ›
-                </button>
+        <div className="track">
+          <div className="card track-sum">
+            <div className="date-nav">
+              <button type="button" aria-label="Hari sebelumnya" onClick={() => setDate(shiftDate(date, -1))}>
+                ‹
+              </button>
+              <div>
+                <b>{dayLabel(date)}</b>
+                {!isToday && (
+                  <button type="button" className="linkish" onClick={() => setDate(localDate())}>
+                    ke hari ini
+                  </button>
+                )}
               </div>
-
-              <Meter big label="Kalori" value={total.kcal} target={plan.targetKcal} unit="kkal" color="var(--ink)" kind="limit" />
-              <Meter label="Protein" value={total.p} target={plan.proteinG} unit="g" color="var(--mac-p)" kind="goal" />
-              <Meter label="Serat" value={total.fb} target={plan.fiberG} unit="g" color="var(--leaf)" kind="goal" />
-              <div className="meter-pair">
-                <Meter label="Gula tambahan" value={sugarG} target={SUGAR_LIMIT_G} unit="g" color="#8E5A3C" kind="limit" />
-                <div className="water">
-                  <div className="meter-top">
-                    <span className="meter-label">Air putih</span>
-                    <span className="meter-val">
-                      <b>{fmtAmount(waterGlasses)}</b> / {plan.waterGlasses} gelas
-                    </span>
-                  </div>
-                  <div className="water-ctl">
-                    <button type="button" aria-label="Kurangi 1 gelas air" onClick={removeWater} disabled={busy || water.length === 0}>
-                      −
-                    </button>
-                    <div className="glasses" aria-hidden>
-                      {Array.from({ length: plan.waterGlasses }, (_, i) => (
-                        <i key={i} className={i < waterGlasses ? "on" : ""} />
-                      ))}
-                    </div>
-                    <button type="button" aria-label="Tambah 1 gelas air" onClick={addWater} disabled={busy}>
-                      +
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className="meter-pair">
-                <Meter label="Karbo" value={total.c} target={plan.carbG} unit="g" color="var(--mac-c)" kind="range" />
-                <Meter label="Lemak" value={total.f} target={plan.fatG} unit="g" color="var(--mac-f)" kind="limit" />
-              </div>
+              <button type="button" aria-label="Hari berikutnya" disabled={isToday} onClick={() => setDate(shiftDate(date, 1))}>
+                ›
+              </button>
             </div>
 
-            <div className="card week-card">
-              <span className="label">7 hari terakhir · ketuk untuk membuka harinya</span>
-              <Week days={days} target={plan.targetKcal} selected={date} onPick={setDate} />
-              {mode === "local" && <p className="fine">Database belum disambung: catatan tersimpan di browser ini saja.</p>}
-            </div>
-
-            <div className="track-main">
-              <div className="card add">
-                <div className="add-head">
-                  <div className="seg" role="group" aria-label="Waktu makan">
-                    {MEAL_SLOTS.map((m) => (
-                      <button key={m.key} type="button" aria-pressed={slot === m.key} onClick={() => setSlot(m.key)}>
-                        {m.label}
-                      </button>
+            <Meter big label="Kalori" value={total.kcal} target={plan.targetKcal} unit="kkal" color="var(--ink)" kind="limit" />
+            <Meter label="Protein" value={total.p} target={plan.proteinG} unit="g" color="var(--mac-p)" kind="goal" />
+            <Meter label="Serat" value={total.fb} target={plan.fiberG} unit="g" color="var(--leaf)" kind="goal" />
+            <div className="meter-pair">
+              <Meter label="Gula tambahan" value={sugarG} target={SUGAR_LIMIT_G} unit="g" color="#8E5A3C" kind="limit" />
+              <div className="water">
+                <div className="meter-top">
+                  <span className="meter-label">Air putih</span>
+                  <span className="meter-val">
+                    <b>{fmtAmount(waterGlasses)}</b> / {plan.waterGlasses} gelas
+                  </span>
+                </div>
+                <div className="water-ctl">
+                  <button type="button" aria-label="Kurangi 1 gelas air" onClick={removeWater} disabled={busy || water.length === 0}>
+                    −
+                  </button>
+                  <div className="glasses" aria-hidden>
+                    {Array.from({ length: plan.waterGlasses }, (_, i) => (
+                      <i key={i} className={i < waterGlasses ? "on" : ""} />
                     ))}
                   </div>
-                  {planMeal && (
-                    <button type="button" className="btn ghost small" onClick={addPlanPlate} disabled={busy}>
-                      Makan sesuai rencana
-                    </button>
-                  )}
+                  <button type="button" aria-label="Tambah 1 gelas air" onClick={addWater} disabled={busy}>
+                    +
+                  </button>
                 </div>
-
-                <div className="tabs small" role="tablist">
-                  {GROUPS.map((g) => (
-                    <button key={g.key} role="tab" aria-selected={group === g.key} onClick={() => setGroup(g.key)}>
-                      {g.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="food-grid">
-                  {LOG_ITEMS.filter((i) => i.group === group).map((i) => (
-                    <button key={i.id} type="button" className="food" aria-pressed={i.id === foodId} onClick={() => pickFood(i.id)}>
-                      <FoodIcon id={i.id} size={40} />
-                      <span>{i.name}</span>
-                    </button>
-                  ))}
-                </div>
-
-                {item && (
-                  <div className="amount">
-                    <UnitIcon foodId={foodId} size={52} />
-                    <div className="amount-in">
-                      <label className="label" htmlFor="amt">
-                        {item.name}, berapa {item.unit}?
-                      </label>
-                      <div className="amount-row">
-                        <Stepper id="amt" value={amount} min={item.step} max={20} step={item.step} unit={item.unit} onChange={setAmount} />
-                        {item.fryable && (
-                          <label className="check">
-                            <input type="checkbox" checked={fried} onChange={(e) => setFried(e.target.checked)} />
-                            digoreng
-                          </label>
-                        )}
-                      </div>
-                      {item.group === "minum" && (
-                        <div className="sizes" role="group" aria-label="Ukuran cepat">
-                          {DRINK_SIZES.map((d) => (
-                            <button key={d.label} type="button" aria-pressed={amount === d.amount} onClick={() => setAmount(d.amount)}>
-                              {d.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {item.sweetable && (
-                        <div className="sweet" role="group" aria-label="Tingkat manis">
-                          {SWEET_LEVELS.map((l) => (
-                            <button key={l.v} type="button" aria-pressed={sweet === l.v} onClick={() => setSweet(l.v)}>
-                              <span className="cubes" aria-hidden>
-                                {[1, 2, 3].map((n) => (
-                                  <i key={n} className={n <= l.v ? "on" : ""} />
-                                ))}
-                              </span>
-                              {l.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {preview && (
-                        <p className="preview num">
-                          = {n0(preview.kcal)} kkal · protein {preview.p} g · serat {preview.fb} g
-                          {fried && item.fryable ? " · sudah termasuk minyak yang terserap" : ""}
-                          {previewSugar > 0
-                            ? ` · gula ±${Math.round(previewSugar)} g (≈ ${fmtAmount(Math.max(0.5, Math.round(previewSugar / 12.5 * 2) / 2))} sdm)`
-                            : ""}
-                        </p>
-                      )}
-                    </div>
-                    <button type="button" className="btn primary" disabled={busy} onClick={() => addRows([{ foodId, amount, fried, sweet }])}>
-                      {busy ? "Menyimpan…" : `Tambah ke ${MEAL_SLOTS.find((m) => m.key === slot)!.label.toLowerCase()}`}
-                    </button>
-                  </div>
-                )}
-                {err && <div className="status err">{err}</div>}
-              </div>
-
-              <div className="day-list">
-                {MEAL_SLOTS.map((m) => {
-                  const rows = today.filter((l) => l.meal === m.key && l.food_id !== "air");
-                  const kcal = rows.reduce((s, l) => s + l.kcal, 0);
-                  const b = budget(m.key);
-                  if (rows.length === 0 && b === 0) return null;
-                  return (
-                    <div key={m.key} className="card day-meal">
-                      <header>
-                        <h3>{m.label}</h3>
-                        <span className={`num ${b > 0 && kcal > b * 1.1 ? "over" : ""}`}>
-                          {n0(kcal)} / {n0(b)} kkal
-                        </span>
-                      </header>
-                      {rows.length === 0 ? (
-                        <p className="fine">Belum ada catatan.</p>
-                      ) : (
-                        <ul>
-                          {rows.map((r) => {
-                            const it = LOG_BY_ID[r.food_id];
-                            return (
-                              <li key={r.id}>
-                                <FoodIcon id={r.food_id} size={32} />
-                                <span className="what">
-                                  <b className="num">
-                                    {fmtAmount(Number(r.amount))} {it?.unit}
-                                  </b>{" "}
-                                  {it?.name ?? r.food_id}
-                                  {r.fried ? " (goreng)" : ""}
-                                  {LOG_BY_ID[r.food_id]?.sweetable ? ` · ${SWEET_LEVELS[Number(r.sweet ?? 0)]?.short ?? ""}` : ""}
-                                </span>
-                                <span className="num nut">
-                                  {n0(r.kcal)} kkal · P {Math.round(r.p)} · S {Math.round(Number(r.fb))}
-                                </span>
-                                <button type="button" className="x" aria-label={`Hapus ${it?.name}`} onClick={() => remove(r)}>
-                                  ×
-                                </button>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </div>
-                  );
-                })}
               </div>
             </div>
+            <div className="meter-pair">
+              <Meter label="Karbo" value={total.c} target={plan.carbG} unit="g" color="var(--mac-c)" kind="range" />
+              <Meter label="Lemak" value={total.f} target={plan.fatG} unit="g" color="var(--mac-f)" kind="limit" />
+            </div>
           </div>
-        )}
+
+          <div className="card week-card">
+            <span className="label">7 hari terakhir · ketuk untuk membuka harinya</span>
+            <Week days={days} target={plan.targetKcal} selected={date} onPick={setDate} />
+          </div>
+
+          <div className="track-main">
+            <div className="card add">
+              <div className="add-head">
+                <div className="seg" role="group" aria-label="Waktu makan">
+                  {MEAL_SLOTS.map((m) => (
+                    <button key={m.key} type="button" aria-pressed={slot === m.key} onClick={() => setSlot(m.key)}>
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="quick">
+                <button type="button" className="btn ghost small" onClick={copyYesterday} disabled={busy}>
+                  Sama seperti kemarin
+                </button>
+                {planMeal && (
+                  <button type="button" className="btn ghost small" onClick={addPlanPlate} disabled={busy}>
+                    Makan sesuai rencana
+                  </button>
+                )}
+              </div>
+              {note && <div className="status ok">{note}</div>}
+
+              <FoodPicker
+                key={profileId}
+                items={items}
+                recent={recent}
+                favorites={favorites}
+                handScale={plan.handScale}
+                busy={busy}
+                slotLabel={slotLabel}
+                onAdd={(rows) => addRows(rows)}
+                onToggleFav={toggleFav}
+                onCreateCustom={createCustom}
+                onMiss={onMiss}
+              />
+              {err && <div className="status err">{err}</div>}
+            </div>
+
+            <div className="day-list">
+              {MEAL_SLOTS.map((m) => {
+                const rows = today.filter((l) => l.meal === m.key && l.food_id !== "air");
+                const kcal = rows.reduce((s, l) => s + Number(l.kcal), 0);
+                const b = budget(m.key);
+                if (rows.length === 0 && b === 0) return null;
+                return (
+                  <div key={m.key} className="card day-meal">
+                    <header>
+                      <h3>{m.label}</h3>
+                      <span className={`num ${b > 0 && kcal > b * 1.1 ? "over" : ""}`}>
+                        {n0(kcal)} / {n0(b)} kkal
+                      </span>
+                    </header>
+                    {rows.length === 0 ? (
+                      <p className="fine">Belum ada catatan.</p>
+                    ) : (
+                      <ul>
+                        {rows.map((r) => {
+                          const it = byId[r.food_id] ?? LOG_BY_ID[r.food_id];
+                          return (
+                            <li key={r.id}>
+                              <FoodIcon id={it?.icon ?? "piring_isi"} size={32} />
+                              <span className="what">
+                                <b className="num">
+                                  {fmtAmount(Number(r.amount))} {it?.unit}
+                                </b>{" "}
+                                {it?.name ?? "Makanan yang sudah dihapus"}
+                                {r.fried ? " (goreng)" : ""}
+                                {it?.sweetable ? ` · ${SWEET_LEVELS[Number(r.sweet ?? 0)]?.short ?? ""}` : ""}
+                              </span>
+                              <span className="num nut">
+                                {n0(Number(r.kcal))} kkal · P {Math.round(Number(r.p))} · S {Math.round(Number(r.fb))}
+                              </span>
+                              <button type="button" className="x" aria-label={`Hapus ${it?.name ?? ""}`} onClick={() => remove(r)}>
+                                ×
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                    {samplesEnabled && rows.length > 0 && (
+                      <PhotoSample
+                        key={`${date}-${m.key}`}
+                        profileId={profileId}
+                        date={date}
+                        meal={m.key}
+                        consented={photoConsent}
+                        onConsent={onPhotoConsent}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );

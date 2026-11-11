@@ -338,6 +338,47 @@ const FOOD_ART: Record<string, () => ReactNode> = {
     </>
   ),
 
+  /* ikon kategori untuk database makanan */
+  apel: () => (
+    <>
+      <path d="M32 18 q-6 -6 -14 -4 q-12 4 -10 22 q2 16 14 20 q6 2 10 -1 q4 3 10 1 q12 -4 14 -20 q2 -18 -10 -22 q-8 -2 -14 4 z" fill="#D2483A" {...line} />
+      <path d="M32 18 q0 -8 4 -12" {...line} fill="none" />
+      <path d="M36 10 q8 -6 14 -2 q-6 8 -14 2 z" fill="#6E9F4C" {...line} />
+      <path d="M18 28 q-2 6 0 12" stroke="#F2A79C" strokeWidth="3" strokeLinecap="round" fill="none" />
+    </>
+  ),
+  mangkuk: () => (
+    <>
+      <path d="M22 14 q-3 4 0 8 M32 10 q-3 5 0 10 M42 14 q-3 4 0 8" stroke="#8A897D" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+      <path d="M6 30 h52 q-2 22 -26 24 q-24 -2 -26 -24 z" fill="#F4F1EA" {...line} />
+      <ellipse cx="32" cy="30" rx="26" ry="5" fill="#E2B04A" {...line} />
+      <circle cx="24" cy="29" r="3" fill="#B87A4B" />
+      <circle cx="36" cy="30" r="3.4" fill="#B87A4B" />
+      <path d="M40 28 q4 -2 6 1" stroke="#4C8A3E" strokeWidth="2.4" strokeLinecap="round" fill="none" />
+      <path d="M26 56 h12" {...line} />
+    </>
+  ),
+  piring_isi: () => (
+    <>
+      <ellipse cx="32" cy="38" rx="28" ry="16" fill="#FFFFFF" {...line} />
+      <ellipse cx="32" cy="38" rx="20" ry="10" fill="#F6F2EA" stroke="#DCD4C3" strokeWidth="1.4" />
+      <path d="M14 38 q2 -12 12 -12 q10 0 10 12 q-11 4 -22 0 z" fill="#FFFDF6" {...thin} />
+      <path d="M34 36 q4 -8 12 -6 q6 2 4 8 q-8 4 -16 -2 z" fill="#D88A3A" {...thin} />
+      <path d="M30 44 q4 -4 8 0 q4 -4 8 0" stroke="#4C8A3E" strokeWidth="2.6" strokeLinecap="round" fill="none" />
+    </>
+  ),
+  sambal: () => (
+    <>
+      <ellipse cx="32" cy="46" rx="22" ry="8" fill="#9C9A8C" {...line} />
+      <path d="M12 44 q0 -14 20 -14 q20 0 20 14 q-20 6 -40 0 z" fill="#C2412D" {...line} />
+      <circle cx="24" cy="38" r="1.6" fill="#F2C14E" />
+      <circle cx="34" cy="35" r="1.6" fill="#F2C14E" />
+      <circle cx="40" cy="40" r="1.6" fill="#F2C14E" />
+      <path d="M44 22 q8 -10 14 -8 q-2 8 -14 8 z" fill="#C2412D" {...line} />
+      <path d="M44 22 q-4 4 -2 8" stroke="#4C8A3E" strokeWidth="2.4" strokeLinecap="round" fill="none" />
+    </>
+  ),
+
   /* minuman */
   teh: () => FOOD_ART.es_teh(),
   kopi: () => (

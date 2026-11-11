@@ -1,94 +1,71 @@
 import { NextResponse } from "next/server";
-import { dbEnabled, ensureSchema, sql } from "@/lib/db";
-import { LOG_BY_ID, nutrientsOf, type Sweet } from "@/lib/log";
+import { sql } from "@/lib/db";
+import { nutrientsOf, type Sweet } from "@/lib/log";
 import { handScaleOf } from "@/lib/nutrition";
+import { track } from "@/lib/server/events";
+import { resolveFood } from "@/lib/server/foods";
+import { profileInput } from "@/lib/server/profiles";
+import { api, HttpError, readJson, requireProfile, requireUser } from "@/lib/server/session";
 
 export const dynamic = "force-dynamic";
 
-const CODE_RE = /^[a-z0-9-]{4,32}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MEALS = ["sarapan", "siang", "malam", "camilan"];
 
-const code = (v: unknown) => (typeof v === "string" ? v.trim().toLowerCase() : "");
-const member = (v: unknown) => (typeof v === "string" ? v.trim().toLowerCase().slice(0, 40) : "");
-const bad = (msg: string, status = 400) => NextResponse.json({ error: msg }, { status });
-const off = () => bad("Database belum disambungkan. Catatan disimpan di browser ini saja.", 503);
-
-export async function GET(req: Request) {
-  if (!dbEnabled) return off();
+export const GET = api(async (req: Request) => {
+  const uid = await requireUser();
   const q = new URL(req.url).searchParams;
-  const fam = code(q.get("family"));
-  const who = member(q.get("member"));
+  const pid = await requireProfile(uid, q.get("profile"));
   const from = q.get("from") ?? "";
   const to = q.get("to") ?? "";
-  if (!CODE_RE.test(fam) || !who || !DATE_RE.test(from) || !DATE_RE.test(to)) return bad("Parameter tidak valid");
-  try {
-    await ensureSchema();
-    const rows = await sql()`
-      select id, to_char(log_date, 'YYYY-MM-DD') as date, meal, food_id, amount, fried, sweet,
-             kcal, protein as p, carb as c, fat as f, fiber as fb
-      from sekepal_logs
-      where family_code = ${fam} and member_key = ${who} and log_date between ${from} and ${to}
-      order by log_date, created_at`;
-    return NextResponse.json({ logs: rows });
-  } catch (e) {
-    console.error(e);
-    return bad("Gagal membaca catatan", 500);
-  }
-}
+  if (!DATE_RE.test(from) || !DATE_RE.test(to)) throw new HttpError(400, "Tanggal tidak valid");
+  const logs = await sql`
+    select id, to_char(log_date, 'YYYY-MM-DD') as date, meal, food_id, amount, fried, sweet,
+           kcal, protein as p, carb as c, fat as f, fiber as fb, sugar
+    from food_logs where profile_id = ${pid} and log_date between ${from} and ${to}
+    order by log_date, id limit 2000`;
+  return NextResponse.json({ logs });
+});
 
-export async function POST(req: Request) {
-  if (!dbEnabled) return off();
-  let b: Record<string, unknown>;
-  try {
-    b = await req.json();
-  } catch {
-    return bad("Body bukan JSON");
-  }
-  const fam = code(b.familyCode);
-  const who = member(b.member);
+/** Tambah satu atau beberapa catatan sekaligus. Gizi dihitung ulang di server. */
+export const POST = api(async (req: Request) => {
+  const uid = await requireUser();
+  const b = await readJson(req);
+  const pid = await requireProfile(uid, b.profile);
   const date = String(b.date ?? "");
   const meal = String(b.meal ?? "");
-  const foodId = String(b.foodId ?? "");
-  const amount = Number(b.amount);
-  const fried = b.fried === true;
-  const sweetRaw = Number(b.sweet);
-  const sweet = ([0, 1, 2, 3].includes(sweetRaw) ? sweetRaw : 0) as Sweet;
-  const heightCm = Number(b.heightCm);
-  const sex = b.sex === "wanita" ? "wanita" : "pria";
-  if (!CODE_RE.test(fam)) return bad("Kode keluarga tidak valid");
-  if (!who) return bad("Nama belum diisi");
-  if (!DATE_RE.test(date) || !MEALS.includes(meal) || !LOG_BY_ID[foodId]) return bad("Data makanan tidak valid");
-  if (!(amount > 0 && amount <= 20) || !(heightCm >= 120 && heightCm <= 220)) return bad("Jumlah tidak valid");
+  if (!DATE_RE.test(date) || !MEALS.includes(meal)) throw new HttpError(400, "Tanggal/waktu makan tidak valid");
+  const items = Array.isArray(b.items) ? b.items : [];
+  if (items.length === 0 || items.length > 20) throw new HttpError(400, "Tidak ada makanan");
 
-  // gizi dihitung ulang di server
-  const n = nutrientsOf(foodId, amount, handScaleOf(heightCm, sex), fried, sweet)!;
-  try {
-    await ensureSchema();
-    const rows = await sql()`
-      insert into sekepal_logs (family_code, member_key, log_date, meal, food_id, amount, fried, sweet, kcal, protein, carb, fat, fiber)
-      values (${fam}, ${who}, ${date}, ${meal}, ${foodId}, ${amount}, ${fried}, ${LOG_BY_ID[foodId].sweetable ? sweet : null}, ${n.kcal}, ${n.p}, ${n.c}, ${n.f}, ${n.fb})
+  const input = await profileInput(uid, pid);
+  const scale = handScaleOf(input.heightCm, input.sex);
+  const out = [];
+  for (const raw of items as Record<string, unknown>[]) {
+    const food = await resolveFood(uid, String(raw.foodId ?? ""));
+    const amount = Number(raw.amount);
+    if (!(amount > 0 && amount <= 20)) throw new HttpError(400, "Jumlah tidak valid");
+    const fried = raw.fried === true && food.fryable;
+    const sweet = (food.sweetable && [0, 1, 2, 3].includes(Number(raw.sweet)) ? Number(raw.sweet) : 0) as Sweet;
+    const n = nutrientsOf(food, amount, scale, fried, sweet)!;
+    const [row] = await sql`
+      insert into food_logs (profile_id, log_date, meal, food_id, amount, fried, sweet, kcal, protein, carb, fat, fiber, sugar)
+      values (${pid}, ${date}, ${meal}, ${food.id}, ${amount}, ${fried}, ${food.sweetable ? sweet : null},
+              ${n.kcal}, ${n.p}, ${n.c}, ${n.f}, ${n.fb}, ${n.sugar})
       returning id, to_char(log_date, 'YYYY-MM-DD') as date, meal, food_id, amount, fried, sweet,
-                kcal, protein as p, carb as c, fat as f, fiber as fb`;
-    return NextResponse.json({ log: rows[0] }, { status: 201 });
-  } catch (e) {
-    console.error(e);
-    return bad("Gagal menyimpan catatan", 500);
+                kcal, protein as p, carb as c, fat as f, fiber as fb, sugar`;
+    out.push(row);
   }
-}
+  await track(uid, "log_add", { n: out.length, via: typeof b.via === "string" ? b.via.slice(0, 20) : "manual" });
+  return NextResponse.json({ logs: out }, { status: 201 });
+});
 
-export async function DELETE(req: Request) {
-  if (!dbEnabled) return off();
-  const q = new URL(req.url).searchParams;
-  const fam = code(q.get("family"));
-  const id = Number(q.get("id"));
-  if (!CODE_RE.test(fam) || !Number.isInteger(id)) return bad("Parameter tidak valid");
-  try {
-    await ensureSchema();
-    await sql()`delete from sekepal_logs where id = ${id} and family_code = ${fam}`;
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    console.error(e);
-    return bad("Gagal menghapus", 500);
-  }
-}
+export const DELETE = api(async (req: Request) => {
+  const uid = await requireUser();
+  const id = Number(new URL(req.url).searchParams.get("id"));
+  if (!Number.isInteger(id)) throw new HttpError(400, "id tidak valid");
+  await sql`
+    delete from food_logs l using profiles p
+    where l.id = ${id} and l.profile_id = p.id and p.user_id = ${uid}`;
+  return NextResponse.json({ ok: true });
+});

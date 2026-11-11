@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Plan, PlanInput } from "@/lib/nutrition";
 import BodyPanel from "./BodyPanel";
 import { Stepper } from "./Form";
 import { Journey } from "./Results";
-import type { Member } from "./useFamily";
+import { call } from "./useAccount";
 
 const c1 = (x: number) => x.toLocaleString("id-ID", { maximumFractionDigits: 1 });
 
@@ -51,19 +51,25 @@ function History({ points }: { points: { date: string; kg: number }[] }) {
 
 export default function Progress({
   plan,
-  member,
+  profileId,
   onWeigh,
 }: {
   plan: Plan;
-  member?: Member;
+  profileId: string;
   onWeigh: (patch: Partial<PlanInput>) => Promise<string | null>;
 }) {
+  const [history, setHistory] = useState<{ kg: number; date: string }[]>([]);
+  const loadHistory = () =>
+    call<{ weights: { kg: number; created_at: string }[] }>(`/api/profiles/${profileId}/weights`)
+      .then((d) => setHistory(d.weights.map((w) => ({ kg: Number(w.kg), date: w.created_at }))))
+      .catch(() => {});
+  useEffect(() => {
+    loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileId]);
   const [kg, setKg] = useState(plan.input.weightKg);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
-  const history = member
-    ? member.weights.map((w, i) => ({ kg: w, date: member.dates[i] }))
-    : [];
   const first = history[0]?.kg;
 
   const save = async () => {
@@ -71,6 +77,7 @@ export default function Progress({
     const e = await onWeigh({ weightKg: kg });
     setBusy(false);
     setMsg(e ? { ok: false, text: e } : { ok: true, text: "Tercatat. Jatah makan sudah disesuaikan dengan berat baru." });
+    if (!e) loadHistory();
   };
 
   return (

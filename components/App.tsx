@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { buildPlan, sanitizeInput, type PlanInput } from "@/lib/nutrition";
+import { useEffect, useMemo, useState } from "react";
+import { buildPlan, type PlanInput } from "@/lib/nutrition";
+import Consent from "./Consent";
 import InstallButton from "./InstallButton";
-import MemberBar from "./MemberBar";
 import Profile from "./Profile";
+import ProfileBar from "./ProfileBar";
 import Progress from "./Progress";
 import { Daily, HandGuide, Meals, Snacks } from "./Results";
 import Setup from "./Setup";
 import Tracker from "./Tracker";
-import { useFamily } from "./useFamily";
+import { call, useAccount } from "./useAccount";
 
 const DEFAULT: PlanInput = {
   name: "",
@@ -24,8 +25,6 @@ const DEFAULT: PlanInput = {
   pace: "sedang",
   meals: 3,
 };
-
-const DRAFT_KEY = "sekepal.draft";
 
 type Tab = "hari" | "makan" | "progres" | "profil";
 
@@ -67,81 +66,83 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
 const HASH_TAB: Record<string, Tab> = { "#catat": "hari", "#piring": "makan", "#progres": "progres", "#profil": "profil" };
 
 export default function App() {
-  const [input, setInput] = useState<PlanInput>(DEFAULT);
-  const [view, setView] = useState<"loading" | "setup" | "edit" | "app">("loading");
+  const account = useAccount();
+  const { me, active } = account;
+  const [view, setView] = useState<"app" | "new" | "edit">("app");
+  const [draft, setDraft] = useState<PlanInput>(DEFAULT);
   const [tab, setTab] = useState<Tab>("hari");
-  const before = useRef<PlanInput | null>(null);
-  const fam = useFamily();
 
-  // ingat isian terakhir di browser ini
   useEffect(() => {
-    let saved: PlanInput | null = null;
-    try {
-      saved = sanitizeInput(JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null"));
-    } catch {}
-    if (saved) setInput(saved);
-    setView(saved?.name ? "app" : "setup");
     const t = HASH_TAB[window.location.hash];
     if (t) setTab(t);
   }, []);
-  useEffect(() => {
-    if (view === "loading") return;
-    try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(input));
-    } catch {}
-  }, [input, view]);
 
-  const plan = useMemo(() => buildPlan(input), [input]);
-  const me = input.name.trim().toLowerCase();
-  const member = fam.members.find((m) => m.key === me);
+  const noProfile = me != null && me.profiles.length === 0;
+  const mode: "loading" | "consent" | "new" | "edit" | "app" = !me
+    ? "loading"
+    : !me.user.consent_at
+      ? "consent"
+      : noProfile || view === "new"
+        ? "new"
+        : view === "edit"
+          ? "edit"
+          : "app";
 
-  const set = (patch: Partial<PlanInput>) => setInput((s) => ({ ...s, ...patch }));
+  // formulir memakai draft; tampilan pantau memakai data profil yang tersimpan
+  const shown: PlanInput = mode === "new" || mode === "edit" ? draft : (active?.input ?? DEFAULT);
+  const plan = useMemo(() => buildPlan(shown), [shown]);
+
+  const set = (patch: Partial<PlanInput>) => setDraft((s) => ({ ...s, ...patch }));
   const goTab = (t: Tab) => {
     setTab(t);
     window.scrollTo({ top: 0 });
+    call("/api/events", { method: "POST", json: { name: "tab_view", tab: t } }).catch(() => {});
   };
-  const open = (i: PlanInput) => {
-    setInput(i);
+  const pick = (id: string) => {
+    account.setActiveId(id);
     setView("app");
-    goTab("hari");
   };
-  const newMember = () => {
-    before.current = view === "app" ? input : null;
-    setInput({ ...DEFAULT, name: "" });
-    setView("setup");
+  const newProfile = () => {
+    setDraft({ ...DEFAULT, name: "" });
+    setView("new");
     window.scrollTo({ top: 0 });
     setTimeout(() => document.getElementById("name")?.focus(), 50);
   };
   const edit = () => {
-    before.current = input;
+    if (!active) return;
+    setDraft(active.input);
     setView("edit");
     window.scrollTo({ top: 0 });
   };
-  const cancel = () => {
-    if (before.current) setInput(before.current);
-    setView("app");
-  };
-  const saveSetup = async () => {
-    const r = await fam.saveEntry(input);
-    if (!r.ok) return r.error;
-    setView("app");
-    goTab("hari");
-    return null;
+  const save = async () => {
+    try {
+      if (mode === "edit" && active) await account.updateProfile(active.id, draft);
+      else await account.createProfile(draft);
+      setView("app");
+      setTab("hari");
+      window.scrollTo({ top: 0 });
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : "Gagal menyimpan";
+    }
   };
   const weigh = async (patch: Partial<PlanInput>) => {
+    if (!active) return "Profil belum dipilih";
+    const input = active.input;
     // target berat tetap; sisa kg yang perlu dicapai ikut berubah
     const kg = patch.weightKg ?? input.weightKg;
     let changeKg = input.changeKg;
     if (input.goal === "turun") changeKg = Math.max(0, Math.round((kg - (input.weightKg - input.changeKg)) * 10) / 10);
     if (input.goal === "naik") changeKg = Math.max(0, Math.round((input.weightKg + input.changeKg - kg) * 10) / 10);
-    const next = { ...input, ...patch, changeKg };
-    const r = await fam.saveEntry(next);
-    if (!r.ok) return r.error;
-    setInput(next);
-    return null;
+    try {
+      await account.updateProfile(active.id, { ...input, ...patch, changeKg });
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : "Gagal menyimpan";
+    }
   };
 
-  const inApp = view === "app";
+  const inApp = mode === "app" && active != null;
 
   return (
     <>
@@ -152,7 +153,7 @@ export default function App() {
               <path d="M8 50 q0 -34 24 -36 q24 2 24 36 q-24 7 -48 0 z" fill="#FFFDF6" stroke="#26261F" strokeWidth="4" strokeLinejoin="round" />
               <path d="M22 34 q3 -2 6 0 M34 28 q3 -2 6 0 M30 42 q3 -2 6 0" stroke="#C2412D" strokeWidth="3.4" strokeLinecap="round" fill="none" />
             </svg>
-            Sekepal
+            Sekepal <span className="beta">beta</span>
             <small>takaran makan pakai tangan sendiri</small>
           </div>
           {inApp && (
@@ -167,22 +168,40 @@ export default function App() {
           <InstallButton />
         </div>
       </header>
-      <MemberBar fam={fam} current={inApp ? input.name : ""} onPick={open} onNew={newMember} />
+      {me && me.user.consent_at && (
+        <ProfileBar profiles={me.profiles} activeId={account.activeId} onPick={pick} onNew={newProfile} disabled={mode === "new"} />
+      )}
 
       <main className={inApp ? "with-nav" : ""}>
-        {view === "loading" && <div className="wrap section" aria-busy />}
+        {mode === "loading" && (
+          <div className="wrap section" aria-busy>
+            {account.error ? <div className="status err">{account.error}</div> : <p className="fine">Memuat…</p>}
+          </div>
+        )}
 
-        {(view === "setup" || view === "edit") && (
+        {mode === "consent" && <Consent email={me!.user.email} onAgree={account.consent} />}
+
+        {(mode === "new" || mode === "edit") && (
           <Setup
             plan={plan}
             set={set}
-            editing={view === "edit"}
-            onSave={saveSetup}
-            onCancel={view === "edit" || before.current ? cancel : undefined}
+            editing={mode === "edit"}
+            onSave={save}
+            onCancel={!noProfile ? () => setView("app") : undefined}
           />
         )}
 
-        {inApp && tab === "hari" && <Tracker plan={plan} code={fam.code} setCode={fam.setCode} mode={fam.mode} onPlan={() => goTab("makan")} />}
+        {inApp && tab === "hari" && (
+          <Tracker
+            key={active.id}
+            plan={plan}
+            profileId={active.id}
+            samplesEnabled={me!.features.samples}
+            photoConsent={Boolean(me!.user.photo_consent_at)}
+            onPhotoConsent={() => account.setPhotoConsent(true)}
+            onPlan={() => goTab("makan")}
+          />
+        )}
 
         {inApp && tab === "makan" && (
           <>
@@ -193,9 +212,9 @@ export default function App() {
           </>
         )}
 
-        {inApp && tab === "progres" && <Progress key={input.name} plan={plan} member={member} onWeigh={weigh} />}
+        {inApp && tab === "progres" && <Progress key={active.id} plan={plan} profileId={active.id} onWeigh={weigh} />}
 
-        {inApp && tab === "profil" && <Profile plan={plan} fam={fam} onEdit={edit} onOpen={open} />}
+        {inApp && tab === "profil" && <Profile plan={plan} account={account} onEdit={edit} />}
 
         <footer className="foot">
           <div className="wrap">

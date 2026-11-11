@@ -23,7 +23,3 @@ export const store = {
     }
   },
 };
-
-export const CODE_KEY = "sekepal.family";
-export const CODE_RE = /^[a-z0-9-]{4,32}$/;
-export type DbMode = "db" | "local" | "unknown";

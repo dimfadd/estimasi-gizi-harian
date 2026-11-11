@@ -2,7 +2,7 @@
 // - Halaman: ambil dari jaringan dulu, kalau offline pakai salinan terakhir.
 // - File statis Next (_next/static) & ikon: dari cache (namanya sudah berisi hash).
 // - API (/api/*): selalu jaringan, tidak pernah di-cache, supaya data keluarga tidak basi.
-const VERSION = "sekepal-v1";
+const VERSION = "sekepal-v2";
 const PRECACHE = ["/", "/icon-192.png", "/icon-512.png", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
