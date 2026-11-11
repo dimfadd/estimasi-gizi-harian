@@ -2,6 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  DRINK_SIZES,
+  SUGAR_G,
+  SUGAR_LIMIT_G,
+  SWEET_LEVELS,
+  sugarOf,
+  type Sweet,
   LOG_BY_ID,
   LOG_ITEMS,
   MEAL_SLOTS,
@@ -26,13 +32,17 @@ interface LogRow extends Nutrients {
   food_id: string;
   amount: number;
   fried: boolean;
+  sweet?: number | null;
 }
+
+type NewRow = { foodId: string; amount: number; fried: boolean; sweet?: Sweet };
 
 const GROUPS: { key: LogGroup; label: string }[] = [
   { key: "karbo", label: "Nasi & karbo" },
   { key: "lauk", label: "Lauk" },
   { key: "sayur", label: "Sayur, buah, minyak" },
-  { key: "camilan", label: "Camilan & minuman" },
+  { key: "minum", label: "Minuman" },
+  { key: "camilan", label: "Camilan" },
 ];
 
 const HAND_UNITS = ["kepal", "telapak", "ibu jari", "genggam"];
@@ -169,6 +179,7 @@ export default function Tracker({
   const [foodId, setFoodId] = useState("nasi_putih");
   const [amount, setAmount] = useState(1);
   const [fried, setFried] = useState(false);
+  const [sweet, setSweet] = useState<Sweet>(2);
   const [logs, setLogs] = useState<LogRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -202,9 +213,10 @@ export default function Tracker({
   }, [fetchLogs]);
 
   const item = LOG_BY_ID[foodId];
-  const preview = nutrientsOf(foodId, amount, plan.handScale, fried);
+  const preview = nutrientsOf(foodId, amount, plan.handScale, fried, sweet);
+  const previewSugar = sugarOf(foodId, amount, sweet);
 
-  const addRows = async (rows: { foodId: string; amount: number; fried: boolean }[]) => {
+  const addRows = async (rows: NewRow[], meal: MealSlot = slot) => {
     if (!ready || rows.length === 0) return;
     setBusy(true);
     setErr("");
@@ -214,11 +226,12 @@ export default function Tracker({
         const added: LogRow[] = rows.map((r, i) => ({
           id: `${Date.now()}-${i}`,
           date,
-          meal: slot,
+          meal,
           food_id: r.foodId,
           amount: r.amount,
           fried: r.fried,
-          ...nutrientsOf(r.foodId, r.amount, plan.handScale, r.fried)!,
+          sweet: LOG_BY_ID[r.foodId].sweetable ? (r.sweet ?? 0) : null,
+          ...nutrientsOf(r.foodId, r.amount, plan.handScale, r.fried, r.sweet ?? 0)!,
         }));
         // simpan maksimal ±90 hari terakhir supaya storage tidak penuh
         const cutoff = shiftDate(localDate(), -90);
@@ -234,10 +247,11 @@ export default function Tracker({
               familyCode: code,
               member,
               date,
-              meal: slot,
+              meal,
               foodId: r.foodId,
               amount: r.amount,
               fried: r.fried,
+              sweet: r.sweet ?? 0,
               heightCm: input.heightCm,
               sex: input.sex,
             }),
@@ -281,6 +295,14 @@ export default function Tracker({
   };
 
   const today = logs.filter((l) => l.date === date);
+  const water = today.filter((l) => l.food_id === "air");
+  const waterGlasses = water.reduce((s, l) => s + Number(l.amount), 0);
+  const sugarG = today.reduce((s, l) => s + sugarOf(l.food_id, Number(l.amount), (l.sweet ?? 0) as Sweet), 0);
+  const addWater = () => addRows([{ foodId: "air", amount: 1, fried: false }], slotForHour(new Date().getHours()));
+  const removeWater = () => {
+    const last = water[water.length - 1];
+    if (last) remove(last);
+  };
   const total = sumNutrients(today);
   const days = useMemo(
     () =>
@@ -296,8 +318,9 @@ export default function Tracker({
   const pickFood = (id: string) => {
     setFoodId(id);
     const it = LOG_BY_ID[id];
-    setAmount(it.step === 1 ? 1 : 1);
+    setAmount(1);
     setFried(false);
+    if (it.sweetable) setSweet(id === "kopi" || id === "teh" ? 2 : id === "kemasan" ? 3 : 1);
   };
 
   return (
@@ -355,6 +378,30 @@ export default function Tracker({
               <Meter big label="Kalori" value={total.kcal} target={plan.targetKcal} unit="kkal" color="var(--ink)" kind="limit" />
               <Meter label="Protein" value={total.p} target={plan.proteinG} unit="g" color="var(--mac-p)" kind="goal" />
               <Meter label="Serat" value={total.fb} target={plan.fiberG} unit="g" color="var(--leaf)" kind="goal" />
+              <div className="meter-pair">
+                <Meter label="Gula tambahan" value={sugarG} target={SUGAR_LIMIT_G} unit="g" color="#8E5A3C" kind="limit" />
+                <div className="water">
+                  <div className="meter-top">
+                    <span className="meter-label">Air putih</span>
+                    <span className="meter-val">
+                      <b>{fmtAmount(waterGlasses)}</b> / {plan.waterGlasses} gelas
+                    </span>
+                  </div>
+                  <div className="water-ctl">
+                    <button type="button" aria-label="Kurangi 1 gelas air" onClick={removeWater} disabled={busy || water.length === 0}>
+                      −
+                    </button>
+                    <div className="glasses" aria-hidden>
+                      {Array.from({ length: plan.waterGlasses }, (_, i) => (
+                        <i key={i} className={i < waterGlasses ? "on" : ""} />
+                      ))}
+                    </div>
+                    <button type="button" aria-label="Tambah 1 gelas air" onClick={addWater} disabled={busy}>
+                      +
+                    </button>
+                  </div>
+                </div>
+              </div>
               <div className="meter-pair">
                 <Meter label="Karbo" value={total.c} target={plan.carbG} unit="g" color="var(--mac-c)" kind="range" />
                 <Meter label="Lemak" value={total.f} target={plan.fatG} unit="g" color="var(--mac-f)" kind="limit" />
@@ -417,14 +464,40 @@ export default function Tracker({
                           </label>
                         )}
                       </div>
+                      {item.group === "minum" && (
+                        <div className="sizes" role="group" aria-label="Ukuran cepat">
+                          {DRINK_SIZES.map((d) => (
+                            <button key={d.label} type="button" aria-pressed={amount === d.amount} onClick={() => setAmount(d.amount)}>
+                              {d.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {item.sweetable && (
+                        <div className="sweet" role="group" aria-label="Tingkat manis">
+                          {SWEET_LEVELS.map((l) => (
+                            <button key={l.v} type="button" aria-pressed={sweet === l.v} onClick={() => setSweet(l.v)}>
+                              <span className="cubes" aria-hidden>
+                                {[1, 2, 3].map((n) => (
+                                  <i key={n} className={n <= l.v ? "on" : ""} />
+                                ))}
+                              </span>
+                              {l.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                       {preview && (
                         <p className="preview num">
                           = {n0(preview.kcal)} kkal · protein {preview.p} g · serat {preview.fb} g
                           {fried && item.fryable ? " · sudah termasuk minyak yang terserap" : ""}
+                          {previewSugar > 0
+                            ? ` · gula ±${Math.round(previewSugar)} g (≈ ${fmtAmount(Math.max(0.5, Math.round(previewSugar / 12.5 * 2) / 2))} sdm)`
+                            : ""}
                         </p>
                       )}
                     </div>
-                    <button type="button" className="btn primary" disabled={busy} onClick={() => addRows([{ foodId, amount, fried }])}>
+                    <button type="button" className="btn primary" disabled={busy} onClick={() => addRows([{ foodId, amount, fried, sweet }])}>
                       {busy ? "Menyimpan…" : `Tambah ke ${MEAL_SLOTS.find((m) => m.key === slot)!.label.toLowerCase()}`}
                     </button>
                   </div>
@@ -434,7 +507,7 @@ export default function Tracker({
 
               <div className="day-list">
                 {MEAL_SLOTS.map((m) => {
-                  const rows = today.filter((l) => l.meal === m.key);
+                  const rows = today.filter((l) => l.meal === m.key && l.food_id !== "air");
                   const kcal = rows.reduce((s, l) => s + l.kcal, 0);
                   const b = budget(m.key);
                   if (rows.length === 0 && b === 0) return null;
@@ -461,6 +534,7 @@ export default function Tracker({
                                   </b>{" "}
                                   {it?.name ?? r.food_id}
                                   {r.fried ? " (goreng)" : ""}
+                                  {LOG_BY_ID[r.food_id]?.sweetable ? ` · ${SWEET_LEVELS[Number(r.sweet ?? 0)]?.short ?? ""}` : ""}
                                 </span>
                                 <span className="num nut">
                                   {n0(r.kcal)} kkal · P {Math.round(r.p)} · S {Math.round(Number(r.fb))}

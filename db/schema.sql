@@ -21,6 +21,7 @@ create table if not exists sekepal_logs (
   food_id text not null,
   amount real not null,          -- dalam satuan tangan / butir / ekor
   fried boolean not null default false,
+  sweet smallint,                -- minuman: 0 tawar … 3 manis sekali
   kcal real not null,
   protein real not null,
   carb real not null,

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { dbEnabled, ensureSchema, sql } from "@/lib/db";
-import { LOG_BY_ID, nutrientsOf } from "@/lib/log";
+import { LOG_BY_ID, nutrientsOf, type Sweet } from "@/lib/log";
 import { handScaleOf } from "@/lib/nutrition";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +25,7 @@ export async function GET(req: Request) {
   try {
     await ensureSchema();
     const rows = await sql()`
-      select id, to_char(log_date, 'YYYY-MM-DD') as date, meal, food_id, amount, fried,
+      select id, to_char(log_date, 'YYYY-MM-DD') as date, meal, food_id, amount, fried, sweet,
              kcal, protein as p, carb as c, fat as f, fiber as fb
       from sekepal_logs
       where family_code = ${fam} and member_key = ${who} and log_date between ${from} and ${to}
@@ -52,6 +52,8 @@ export async function POST(req: Request) {
   const foodId = String(b.foodId ?? "");
   const amount = Number(b.amount);
   const fried = b.fried === true;
+  const sweetRaw = Number(b.sweet);
+  const sweet = ([0, 1, 2, 3].includes(sweetRaw) ? sweetRaw : 0) as Sweet;
   const heightCm = Number(b.heightCm);
   const sex = b.sex === "wanita" ? "wanita" : "pria";
   if (!CODE_RE.test(fam)) return bad("Kode keluarga tidak valid");
@@ -60,13 +62,13 @@ export async function POST(req: Request) {
   if (!(amount > 0 && amount <= 20) || !(heightCm >= 120 && heightCm <= 220)) return bad("Jumlah tidak valid");
 
   // gizi dihitung ulang di server
-  const n = nutrientsOf(foodId, amount, handScaleOf(heightCm, sex), fried)!;
+  const n = nutrientsOf(foodId, amount, handScaleOf(heightCm, sex), fried, sweet)!;
   try {
     await ensureSchema();
     const rows = await sql()`
-      insert into sekepal_logs (family_code, member_key, log_date, meal, food_id, amount, fried, kcal, protein, carb, fat, fiber)
-      values (${fam}, ${who}, ${date}, ${meal}, ${foodId}, ${amount}, ${fried}, ${n.kcal}, ${n.p}, ${n.c}, ${n.f}, ${n.fb})
-      returning id, to_char(log_date, 'YYYY-MM-DD') as date, meal, food_id, amount, fried,
+      insert into sekepal_logs (family_code, member_key, log_date, meal, food_id, amount, fried, sweet, kcal, protein, carb, fat, fiber)
+      values (${fam}, ${who}, ${date}, ${meal}, ${foodId}, ${amount}, ${fried}, ${LOG_BY_ID[foodId].sweetable ? sweet : null}, ${n.kcal}, ${n.p}, ${n.c}, ${n.f}, ${n.fb})
+      returning id, to_char(log_date, 'YYYY-MM-DD') as date, meal, food_id, amount, fried, sweet,
                 kcal, protein as p, carb as c, fat as f, fiber as fb`;
     return NextResponse.json({ log: rows[0] }, { status: 201 });
   } catch (e) {

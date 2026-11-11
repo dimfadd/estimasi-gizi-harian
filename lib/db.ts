@@ -43,6 +43,8 @@ export function ensureSchema() {
         fiber real not null,
         created_at timestamptz not null default now()
       )`;
+      // kolom tingkat manis ditambahkan belakangan; aman dijalankan berulang
+      await q`alter table sekepal_logs add column if not exists sweet smallint`;
       await q`create index if not exists sekepal_logs_member_idx
         on sekepal_logs (family_code, member_key, log_date)`;
     })().catch((e) => {

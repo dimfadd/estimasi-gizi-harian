@@ -8,7 +8,7 @@ Dua mode:
 
 - **Isi data** — hanya untuk orang baru atau saat "Ubah data": formulir, pratinjau target, model tubuh 3D, tombol simpan.
 - **Pantau** — tampilan sehari-hari, 4 tab (navigasi bawah di HP):
-  1. **Hari ini**: indikator kalori/protein/serat (+ karbo/lemak) dan catat makan per waktu makan dalam ukuran tangan, grafik 7 hari
+  1. **Hari ini**: indikator kalori/protein/serat, gula tambahan (batas 50 g), air putih (+1 gelas sekali ketuk), karbo/lemak; catat makan & minum per waktu makan dalam ukuran tangan/gelas, dengan tingkat manis untuk minuman; grafik 7 hari
   2. **Mau makan apa**: isi piring per sarapan/siang/malam, jatah sehari, camilan, cara menakar
   3. **Progres**: catat berat, riwayat berat, bentuk badan 3D sekarang → target, perkiraan waktu
   4. **Profil**: ringkasan data + Ubah data, kode keluarga & anggota, cara hitung

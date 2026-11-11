@@ -338,6 +338,72 @@ const FOOD_ART: Record<string, () => ReactNode> = {
     </>
   ),
 
+  /* minuman */
+  teh: () => FOOD_ART.es_teh(),
+  kopi: () => (
+    <>
+      <path d="M12 22 h34 v18 q0 14 -17 14 q-17 0 -17 -14 z" fill="#F4F1EA" {...line} />
+      <path d="M46 26 q10 0 10 8 q0 8 -10 8" fill="none" {...line} />
+      <ellipse cx="29" cy="24" rx="15" ry="3.2" fill="#3B2618" />
+      <path d="M22 8 q-3 4 0 8 M30 6 q-3 5 0 10 M38 8 q-3 4 0 8" stroke="#8A897D" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+      <ellipse cx="29" cy="56" rx="22" ry="3" fill="none" {...thin} />
+    </>
+  ),
+  susu_gelas: () => (
+    <>
+      <path d="M16 8 h32 l-4 48 h-24 z" fill="#FFFFFF" {...line} />
+      <path d="M18.6 18 h26.8 l-3.2 37 h-20.4 z" fill="#F4F0E6" />
+      <path d="M16 8 h32 l-4 48 h-24 z" fill="none" {...line} />
+      <path d="M19 18 h26" stroke="#DCD4C3" strokeWidth="2" />
+    </>
+  ),
+  jus: () => (
+    <>
+      <path d="M16 8 h32 l-4 48 h-24 z" fill="#F5EFE6" {...line} />
+      <path d="M18.6 16 h26.8 l-3.4 39 h-20 z" fill="#E98A2E" />
+      <path d="M16 8 h32 l-4 48 h-24 z" fill="none" {...line} />
+      <circle cx="46" cy="10" r="7" fill="#F2C14E" {...line} />
+      <path d="M46 4 v12 M40 10 h12" stroke="#E0A126" strokeWidth="1.4" />
+      <path d="M30 2 l4 30" stroke="#26261F" strokeWidth="2.6" strokeLinecap="round" />
+    </>
+  ),
+  es_jeruk: () => (
+    <>
+      <path d="M16 8 h32 l-4 48 h-24 z" fill="#F5EFE6" {...line} />
+      <path d="M18.6 18 h26.8 l-3.2 37 h-20.4 z" fill="#F4D35E" />
+      <rect x="22" y="24" width="8" height="7" rx="1.5" fill="#FFFBEA" opacity="0.85" />
+      <rect x="33" y="32" width="8" height="7" rx="1.5" fill="#FFFBEA" opacity="0.85" />
+      <path d="M16 8 h32 l-4 48 h-24 z" fill="none" {...line} />
+      <path d="M40 8 a9 9 0 0 1 16 4 z" fill="#8DBF4A" {...line} />
+    </>
+  ),
+  boba: () => (
+    <>
+      <path d="M14 16 h36 l-4 42 h-28 z" fill="#E6CBA5" {...line} />
+      {[
+        [22, 50],
+        [29, 52],
+        [36, 50],
+        [42, 52],
+        [25, 45],
+        [33, 46],
+        [40, 45],
+      ].map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r="2.8" fill="#3B2618" />
+      ))}
+      <path d="M12 16 q20 -10 40 0 z" fill="#F1ECE2" {...line} />
+      <path d="M36 2 l-4 18" stroke="#C2412D" strokeWidth="4" strokeLinecap="round" />
+    </>
+  ),
+  kemasan: () => (
+    <>
+      <path d="M24 4 h16 v8 q8 4 8 14 v28 q0 6 -6 6 h-20 q-6 0 -6 -6 v-28 q0 -10 8 -14 z" fill="#C2412D" {...line} />
+      <rect x="22" y="2" width="20" height="6" rx="2" fill="#26261F" />
+      <rect x="18" y="28" width="28" height="16" fill="#FBF8F1" {...thin} />
+      <path d="M24 36 h16" stroke="#C2412D" strokeWidth="2.4" strokeLinecap="round" />
+    </>
+  ),
+
   /* camilan */
   telur_rebus: () => (
     <>

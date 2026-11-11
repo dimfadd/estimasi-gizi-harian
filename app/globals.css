@@ -1548,7 +1548,10 @@ footer.foot {
 
 @media (max-width: 640px) {
   .amount {
-    grid-template-columns: 44px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .amount > svg {
+    display: none;
   }
   .amount > .btn {
     grid-column: 1 / -1;
@@ -1999,6 +2002,109 @@ footer.foot {
   .weigh-row .btn {
     width: 100%;
   }
+}
+
+/* ---------- minuman, gula, air ---------- */
+
+.sizes,
+.sweet {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.sizes button,
+.sweet button {
+  border: 1.5px solid var(--line-2);
+  background: #fff;
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sizes button[aria-pressed="true"],
+.sweet button[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.cubes {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.cubes i {
+  width: 7px;
+  height: 7px;
+  border-radius: 1.5px;
+  border: 1.3px solid currentColor;
+  opacity: 0.35;
+}
+
+.cubes i.on {
+  background: currentColor;
+  opacity: 1;
+}
+
+.water {
+  display: grid;
+  gap: 6px;
+}
+
+.water .meter-top {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.water-ctl {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 28px;
+  gap: 6px;
+  align-items: center;
+}
+
+.water-ctl button {
+  height: 28px;
+  border: 1.5px solid var(--line-2);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 17px;
+  line-height: 1;
+  padding: 0;
+}
+
+.water-ctl button:last-child {
+  background: var(--water);
+  border-color: var(--water);
+  color: #fff;
+}
+
+.water-ctl button:disabled {
+  opacity: 0.4;
+}
+
+.glasses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.glasses i {
+  width: 7px;
+  height: 11px;
+  border: 1.3px solid var(--water);
+  border-top-width: 0;
+  border-radius: 0 0 2px 2px;
+}
+
+.glasses i.on {
+  background: var(--water);
 }
 
 /* ---------- responsive ---------- */
