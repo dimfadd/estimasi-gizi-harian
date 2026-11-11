@@ -153,11 +153,13 @@ export default function Tracker({
   code,
   setCode,
   mode,
+  onPlan,
 }: {
   plan: Plan;
   code: string;
   setCode: (c: string) => void;
   mode: DbMode;
+  onPlan?: () => void;
 }) {
   const { input } = plan;
   const member = input.name.trim().toLowerCase();
@@ -301,13 +303,13 @@ export default function Tracker({
   return (
     <section className="section" id="catat">
       <div className="wrap">
-        <div className="sec-head">
-          <span className="idx">03</span>
-          <h2>Catat makan</h2>
-          <p>
-            Catat yang benar-benar dimakan, pakai ukuran tangan yang sama. Garis hitam di tiap batang adalah target harian
-            {input.name ? ` ${input.name}` : ""}.
-          </p>
+        <div className="sec-head today-head">
+          <h2>Hari ini</h2>
+          {onPlan && (
+            <button type="button" className="linkish" onClick={onPlan}>
+              Belum tahu mau makan apa? Lihat isi piring yang disarankan
+            </button>
+          )}
         </div>
 
         {!member ? (
@@ -353,13 +355,15 @@ export default function Tracker({
               <Meter big label="Kalori" value={total.kcal} target={plan.targetKcal} unit="kkal" color="var(--ink)" kind="limit" />
               <Meter label="Protein" value={total.p} target={plan.proteinG} unit="g" color="var(--mac-p)" kind="goal" />
               <Meter label="Serat" value={total.fb} target={plan.fiberG} unit="g" color="var(--leaf)" kind="goal" />
-              <Meter label="Karbohidrat" value={total.c} target={plan.carbG} unit="g" color="var(--mac-c)" kind="range" />
-              <Meter label="Lemak" value={total.f} target={plan.fatG} unit="g" color="var(--mac-f)" kind="limit" />
-
-              <div className="week-wrap">
-                <span className="label">7 hari terakhir</span>
-                <Week days={days} target={plan.targetKcal} selected={date} onPick={setDate} />
+              <div className="meter-pair">
+                <Meter label="Karbo" value={total.c} target={plan.carbG} unit="g" color="var(--mac-c)" kind="range" />
+                <Meter label="Lemak" value={total.f} target={plan.fatG} unit="g" color="var(--mac-f)" kind="limit" />
               </div>
+            </div>
+
+            <div className="card week-card">
+              <span className="label">7 hari terakhir · ketuk untuk membuka harinya</span>
+              <Week days={days} target={plan.targetKcal} selected={date} onPick={setDate} />
               {mode === "local" && <p className="fine">Database belum disambung: catatan tersimpan di browser ini saja.</p>}
             </div>
 

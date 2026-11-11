@@ -4,14 +4,16 @@ Kalkulator kebutuhan gizi harian yang hasilnya dalam ukuran tangan: kepal nasi, 
 
 ## Isi
 
-- Formulir data diri, hasil berubah langsung saat diisi
-- Model tubuh 3D (three.js) dengan slider bentuk sekarang → target
-- Jatah sehari: kalori, protein/karbo/lemak/serat, dan versi tangannya
-- Catat makan: input per tanggal & waktu makan pakai kepal/telapak/butir/ekor (bisa centang "digoreng"), indikator kalori/protein/serat/karbo/lemak terhadap target, grafik 7 hari
-- Isi piring per sarapan/siang/malam: pilih karbo dan lauk, porsi nasi menyesuaikan lauk supaya kalori tetap pas
-- Camilan: jatah camilan dan "camilan jebakan" dalam menit jalan cepat
-- Perkiraan waktu sampai berat target
-- Simpan per anggota keluarga dengan kode keluarga (Postgres/Neon), riwayat berat
+Dua mode:
+
+- **Isi data** — hanya untuk orang baru atau saat "Ubah data": formulir, pratinjau target, model tubuh 3D, tombol simpan.
+- **Pantau** — tampilan sehari-hari, 4 tab (navigasi bawah di HP):
+  1. **Hari ini**: indikator kalori/protein/serat (+ karbo/lemak) dan catat makan per waktu makan dalam ukuran tangan, grafik 7 hari
+  2. **Mau makan apa**: isi piring per sarapan/siang/malam, jatah sehari, camilan, cara menakar
+  3. **Progres**: catat berat, riwayat berat, bentuk badan 3D sekarang → target, perkiraan waktu
+  4. **Profil**: ringkasan data + Ubah data, kode keluarga & anggota, cara hitung
+
+Anggota keluarga dipilih dari bar di bawah header.
 
 Rumus: `lib/nutrition.ts`. Data makanan & ukuran porsi: `lib/foods.ts`. Penjelasannya juga ada di bagian "Cara hitungnya" di halaman.
 

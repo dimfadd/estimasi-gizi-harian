@@ -1,169 +1,111 @@
 "use client";
 
 import { useState } from "react";
-import { buildPlan, sanitizeInput, type PlanInput } from "@/lib/nutrition";
-import { CODE_RE, store } from "@/lib/storage";
-import { LOCAL_ENTRIES, localEntries, type Entry, type FamilyState } from "./useFamily";
+import type { PlanInput } from "@/lib/nutrition";
+import { CODE_RE } from "@/lib/storage";
+import type { FamilyState } from "./useFamily";
 
-function Spark({ pts }: { pts: number[] }) {
-  if (pts.length < 2) return null;
-  const W = 120,
-    H = 32;
-  const lo = Math.min(...pts),
-    hi = Math.max(...pts);
-  const span = hi - lo || 1;
-  const d = pts.map((p, i) => `${i === 0 ? "M" : "L"}${((i / (pts.length - 1)) * (W - 6) + 3).toFixed(1)} ${(H - 4 - ((p - lo) / span) * (H - 8)).toFixed(1)}`).join(" ");
-  return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-label={`Riwayat berat: ${pts.join(", ")} kg`} role="img">
-      <path d={d} fill="none" stroke="#C2412D" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-    </svg>
-  );
-}
+export default function Family({ fam, current, onOpen }: { fam: FamilyState; current: string; onOpen: (i: PlanInput) => void }) {
+  const { code, setCode, mode, members, removeEntry } = fam;
+  const [draft, setDraft] = useState(code);
+  const [msg, setMsg] = useState("");
+  const me = current.trim().toLowerCase();
 
-export default function Family({ input, onLoad, fam }: { input: PlanInput; onLoad: (i: PlanInput) => void; fam: FamilyState }) {
-  const { code, setCode, mode, setEntries, members, reload } = fam;
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ kind: "ok" | "err" | "info"; text: string } | null>(null);
-
-  const save = async () => {
-    setMsg(null);
-    const clean = sanitizeInput(input);
-    if (!clean || !clean.name) {
-      setMsg({ kind: "err", text: "Isi nama panggilan dulu di formulir atas." });
-      return;
-    }
-    if (mode !== "local" && !CODE_RE.test(code)) {
-      setMsg({ kind: "err", text: "Kode keluarga 4–32 karakter: huruf kecil, angka, atau strip." });
-      return;
-    }
-    setBusy(true);
+  const share = async () => {
+    const url = `${window.location.origin}/?k=${encodeURIComponent(code)}`;
     try {
-      if (mode === "local") {
-        const p = buildPlan(clean);
-        const e: Entry = {
-          id: `${Date.now()}`,
-          member_name: clean.name,
-          input: clean,
-          output: { targetKcal: p.targetKcal, proteinG: p.proteinG, targetWeightKg: p.targetWeightKg },
-          created_at: new Date().toISOString(),
-        };
-        const all = [e, ...localEntries()].slice(0, 300);
-        store.set(LOCAL_ENTRIES, JSON.stringify(all));
-        setEntries(all);
-      } else {
-        const res = await fetch("/api/entries", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ familyCode: code, input: clean }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Gagal menyimpan");
-        setEntries((xs) => [data.entry, ...xs]);
+      if (navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) {
+        await navigator.share({ title: "Sekepal", url });
+        return;
       }
-      setMsg({ kind: "ok", text: `Tersimpan untuk ${clean.name}.` });
-    } catch (e) {
-      setMsg({ kind: "err", text: e instanceof Error ? e.message : "Gagal menyimpan" });
-    } finally {
-      setBusy(false);
+      await navigator.clipboard.writeText(url);
+      setMsg("Tautan disalin. Kirim ke HP anggota keluarga lewat WhatsApp.");
+    } catch {
+      setMsg(url);
     }
-  };
-
-  const remove = async (e: Entry) => {
-    if (!confirm(`Hapus catatan ${e.member_name} tanggal ${new Date(e.created_at).toLocaleDateString("id-ID")}?`)) return;
-    if (mode === "local") {
-      const all = localEntries().filter((x) => x.id !== e.id);
-      store.set(LOCAL_ENTRIES, JSON.stringify(all));
-      setEntries(all);
-      return;
-    }
-    const res = await fetch(`/api/entries?family=${encodeURIComponent(code)}&id=${e.id}`, { method: "DELETE" });
-    if (res.ok) setEntries((xs) => xs.filter((x) => x.id !== e.id));
-    else setMsg({ kind: "err", text: "Gagal menghapus" });
-  };
-
-  const randomCode = () => {
-    const c = `keluarga-${Math.random().toString(36).slice(2, 7)}`;
-    setCode(c);
   };
 
   return (
     <section className="section" id="keluarga">
       <div className="wrap">
         <div className="sec-head">
-          <span className="idx">08</span>
-          <h2>Simpan &amp; pantau keluarga</h2>
-          <p>
-            Simpan tiap kali timbang (seminggu sekali cukup). Riwayat beratnya muncul di kartu masing-masing. Satu kode untuk satu rumah; siapa pun
-            yang tahu kodenya bisa melihat datanya, jadi jangan pakai nama lengkap atau tanggal lahir.
-          </p>
+          <h2>Keluarga</h2>
+          <p>Satu kode untuk satu rumah. Siapa pun yang tahu kodenya bisa melihat datanya, jadi jangan pakai nama lengkap atau tanggal lahir.</p>
         </div>
         <div className="family">
           <div className="card save-card">
-            {mode !== "local" ? (
-              <div>
+            {mode === "db" ? (
+              <>
                 <label className="label" htmlFor="code">
                   Kode keluarga
                 </label>
-                <div style={{ display: "flex", gap: 8 }}>
+                <form
+                  style={{ display: "flex", gap: 8 }}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (CODE_RE.test(draft)) setCode(draft);
+                  }}
+                >
                   <input
                     id="code"
                     className="text-input"
-                    value={code}
-                    placeholder="mis. rumah-cibubur"
-                    onChange={(e) => setCode(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 32))}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") reload();
-                    }}
+                    value={draft}
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    onChange={(e) => setDraft(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 32))}
                   />
-                  <button type="button" className="btn ghost" onClick={randomCode} title="Buat kode acak">
-                    Acak
+                  <button type="submit" className="btn ghost" disabled={!CODE_RE.test(draft) || draft === code}>
+                    Pakai
                   </button>
-                </div>
-              </div>
+                </form>
+                {fam.codeValid && (
+                  <button type="button" className="btn" onClick={share}>
+                    Kirim tautan ke HP
+                  </button>
+                )}
+                {msg && <div className="status ok" style={{ wordBreak: "break-all" }}>{msg}</div>}
+              </>
             ) : (
               <div className="status">Database belum disambungkan, jadi data hanya tersimpan di browser ini.</div>
             )}
-            <button type="button" className="btn primary" onClick={save} disabled={busy}>
-              {busy ? "Menyimpan…" : `Simpan data ${input.name || "ini"}`}
-            </button>
-            {msg && <div className={`status ${msg.kind === "ok" ? "ok" : msg.kind === "err" ? "err" : ""}`}>{msg.text}</div>}
-            <p className="fine">Yang disimpan: nama panggilan, umur, tinggi, berat, aktivitas, tujuan, dan hasil hitungannya.</p>
           </div>
 
           <div className="members">
-            {members.length === 0 && (
-              <div className="empty">
-                {mode === "db" && !CODE_RE.test(code)
-                  ? "Isi kode keluarga untuk melihat data yang sudah tersimpan."
-                  : "Belum ada data. Isi formulir untuk satu orang, tekan Simpan, lalu ganti ke anggota keluarga berikutnya."}
-              </div>
-            )}
-            {members.map(({ latest, weights, count }) => (
-              <div key={latest.id} className="card member">
+            {members.length === 0 && <div className="empty">Belum ada anggota tersimpan.</div>}
+            {members.map((m) => (
+              <div key={m.key} className={`card member${m.key === me ? " me" : ""}`}>
                 <header>
-                  <h3>{latest.member_name}</h3>
+                  <h3>{m.latest.member_name}</h3>
                   <span className="meta">
-                    {count} catatan · {new Date(latest.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                    {m.count} timbang · {new Date(m.latest.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
                   </span>
                 </header>
                 <div className="row">
                   <div>
-                    <b>{latest.input.weightKg}</b>kg
+                    <b>{m.latest.input.weightKg}</b>kg
                   </div>
                   <div>
-                    <b>{latest.output.targetKcal}</b>kkal
+                    <b>{m.latest.output.targetKcal}</b>kkal
                   </div>
                   <div>
-                    <b>{latest.output.proteinG}</b>g protein
+                    <b>{m.latest.output.proteinG}</b>g protein
                   </div>
                 </div>
-                <Spark pts={weights} />
                 <div className="actions">
-                  <button type="button" className="btn" onClick={() => onLoad(latest.input)}>
-                    Buka
-                  </button>
-                  <button type="button" className="btn ghost" onClick={() => remove(latest)}>
-                    Hapus terakhir
+                  {m.key !== me && (
+                    <button type="button" className="btn" onClick={() => onOpen(m.latest.input)}>
+                      Buka
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={async () => {
+                      if (!confirm(`Hapus timbangan terakhir ${m.latest.member_name}?`)) return;
+                      if (!(await removeEntry(m.latest))) setMsg("Gagal menghapus");
+                    }}
+                  >
+                    Hapus timbangan terakhir
                   </button>
                 </div>
               </div>

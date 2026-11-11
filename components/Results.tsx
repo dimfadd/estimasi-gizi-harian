@@ -12,7 +12,6 @@ const n1 = (x: number) => x.toLocaleString("id-ID", { maximumFractionDigits: 1, 
 function Head({ idx, title, children }: { idx: string; title: string; children?: React.ReactNode }) {
   return (
     <div className="sec-head">
-      <span className="idx">{idx}</span>
       <h2>{title}</h2>
       {children && <p>{children}</p>}
     </div>
@@ -43,7 +42,7 @@ export function Daily({ plan }: { plan: Plan }) {
     <section className="section" id="jatah">
       <div className="wrap">
         <Head idx="02" title="Jatah sehari">
-          Ini total untuk satu hari. Pembagiannya per waktu makan ada di bagian Isi Piring.
+          Total dari semua piring di atas, ditambah camilan.
         </Head>
         <div className="daily">
           <div className="card kcal-card">
@@ -341,7 +340,7 @@ export function Meals({ plan }: { plan: Plan }) {
   return (
     <section className="section" id="piring">
       <div className="wrap">
-        <Head idx="05" title="Isi piring">
+        <Head idx="05" title="Isi piring hari ini">
           Separuh piring sayur, seperempat nasi, seperempat lauk. Pilih lauk yang ada di rumah; porsi nasinya ikut menyesuaikan supaya
           kalorinya tetap pas.
         </Head>

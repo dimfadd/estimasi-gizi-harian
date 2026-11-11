@@ -100,11 +100,19 @@ export default function MemberBar({
                   {m.latest.member_name}
                 </button>
               ))}
+              {me && !members.some((m) => m.key === me) && (
+                <button type="button" className="chip" aria-pressed title="Belum disimpan">
+                  <span className="av" aria-hidden>
+                    {current.trim().charAt(0).toUpperCase()}
+                  </span>
+                  {current.trim()}
+                </button>
+              )}
               <button type="button" className="chip add" onClick={onNew}>
                 + Orang baru
               </button>
               {loading && <span className="mb-note">memuat…</span>}
-              {!loading && members.length === 0 && (
+              {!loading && members.length === 0 && !me && (
                 <span className="mb-note">
                   {mode === "db" ? `Belum ada anggota tersimpan dengan kode "${code}".` : "Belum ada anggota tersimpan di browser ini."}
                 </span>
