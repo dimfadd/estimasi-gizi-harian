@@ -216,8 +216,8 @@ function PlateArt({ carb, protein, veg }: { carb?: Portion; protein: Portion[]; 
     <div className="plate" aria-hidden>
       <svg className="base" viewBox="0 0 100 100">
         <circle cx="50" cy="50" r="48.5" fill="#fff" stroke="#26261F" strokeWidth="1.2" />
-        <circle cx="50" cy="50" r="40" fill="#FBFAF6" stroke="#E1DACB" strokeWidth="0.8" />
-        <path d="M50 10 V90 M50 50 H90" stroke="#E1DACB" strokeWidth="0.8" strokeDasharray="2 1.6" />
+        <circle cx="50" cy="50" r="40" fill="#FBFAF6" stroke="#E3E3E1" strokeWidth="0.8" />
+        <path d="M50 10 V90 M50 50 H90" stroke="#E3E3E1" strokeWidth="0.8" strokeDasharray="2 1.6" />
       </svg>
       {/* sayur: separuh kiri */}
       <div className="zone" style={{ left: "13%", top: "18%", width: "36%", height: "64%" }}>
@@ -463,27 +463,27 @@ function ProjectionChart({ start, end, weeks }: { start: number; end: number; we
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Dari ${start} kg ke ${end} kg dalam ${weeks} minggu`}>
         {yTicks.map((t) => (
           <g key={t}>
-            <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="#DDD5C4" strokeWidth="1" />
-            <text x={L - 8} y={y(t) + 4} textAnchor="end" fontSize="12" fill="#57584F" fontFamily="var(--mono)">
+            <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="#E3E3E1" strokeWidth="1" />
+            <text x={L - 8} y={y(t) + 4} textAnchor="end" fontSize="12" fill="#4D4D4D" fontFamily="var(--mono)">
               {Math.round(t)}
             </text>
           </g>
         ))}
         {ticks.map((t) => (
-          <text key={t} x={x(t)} y={H - 10} textAnchor="middle" fontSize="12" fill="#8A897D" fontFamily="var(--mono)">
+          <text key={t} x={x(t)} y={H - 10} textAnchor="middle" fontSize="12" fill="#8A8A8A" fontFamily="var(--mono)">
             {t === 0 ? "kini" : `mg ${t}`}
           </text>
         ))}
-        <line x1={x(0)} y1={y(start)} x2={x(weeks)} y2={y(end)} stroke="#C2412D" strokeWidth="3" strokeLinecap="round" />
+        <line x1={x(0)} y1={y(start)} x2={x(weeks)} y2={y(end)} stroke="#F95A14" strokeWidth="3" strokeLinecap="round" />
         {ticks.slice(1).map((t) => (
-          <circle key={t} cx={x(t)} cy={y(start + ((end - start) * t) / weeks)} r="3.5" fill="#FBF8F1" stroke="#C2412D" strokeWidth="2" />
+          <circle key={t} cx={x(t)} cy={y(start + ((end - start) * t) / weeks)} r="3.5" fill="#FFFFFF" stroke="#F95A14" strokeWidth="2" />
         ))}
-        <circle cx={x(0)} cy={y(start)} r="6" fill="#22231E" />
-        <circle cx={x(weeks)} cy={y(end)} r="6" fill="#C2412D" stroke="#22231E" strokeWidth="2" />
-        <text x={x(0) + 10} y={y(start) - 10} fontSize="13" fontWeight="600" fill="#22231E" fontFamily="var(--mono)">
+        <circle cx={x(0)} cy={y(start)} r="6" fill="#121212" />
+        <circle cx={x(weeks)} cy={y(end)} r="6" fill="#F95A14" stroke="#121212" strokeWidth="2" />
+        <text x={x(0) + 10} y={y(start) - 10} fontSize="13" fontWeight="600" fill="#121212" fontFamily="var(--mono)">
           {n1(start)} kg
         </text>
-        <text x={x(weeks) - 8} y={y(end) + (end < start ? -12 : 22)} textAnchor="end" fontSize="13" fontWeight="600" fill="#C2412D" fontFamily="var(--mono)">
+        <text x={x(weeks) - 8} y={y(end) + (end < start ? -12 : 22)} textAnchor="end" fontSize="13" fontWeight="600" fill="#F95A14" fontFamily="var(--mono)">
           {n1(end)} kg
         </text>
       </svg>

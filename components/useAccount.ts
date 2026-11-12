@@ -14,9 +14,18 @@ export interface Profile {
 }
 
 export interface Me {
-  user: { email: string; name: string | null; image: string | null; consent_at: string | null; photo_consent_at: string | null; admin: boolean };
+  user: {
+    email: string;
+    name: string | null;
+    image: string | null;
+    consent_at: string | null;
+    photo_consent_at: string | null;
+    admin: boolean;
+    pro: boolean;
+    pro_until: string | null;
+  };
   profiles: Profile[];
-  features: { samples: boolean };
+  features: { samples: boolean; photoAi: boolean };
 }
 
 const ACTIVE_KEY = "sekepal.active";

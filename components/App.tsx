@@ -7,6 +7,8 @@ import InstallButton from "./InstallButton";
 import Profile from "./Profile";
 import ProfileBar from "./ProfileBar";
 import Progress from "./Progress";
+import { ProSheet } from "./Pro";
+import Workout from "./Workout";
 import { Daily, HandGuide, Meals, Snacks } from "./Results";
 import Setup from "./Setup";
 import Tracker from "./Tracker";
@@ -26,7 +28,7 @@ const DEFAULT: PlanInput = {
   meals: 3,
 };
 
-type Tab = "hari" | "makan" | "progres" | "profil";
+type Tab = "hari" | "makan" | "latihan" | "progres" | "profil";
 
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   {
@@ -47,6 +49,13 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
     ),
   },
   {
+    key: "latihan",
+    label: "Latihan",
+    icon: (
+      <path d="M3 10v4 M6 7v10 M18 7v10 M21 10v4 M6 12h12" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    ),
+  },
+  {
     key: "progres",
     label: "Progres",
     icon: <path d="M4 19h16 M5 15l4-5 4 3 6-7" fill="none" strokeLinecap="round" strokeLinejoin="round" />,
@@ -63,7 +72,7 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   },
 ];
 
-const HASH_TAB: Record<string, Tab> = { "#catat": "hari", "#piring": "makan", "#progres": "progres", "#profil": "profil" };
+const HASH_TAB: Record<string, Tab> = { "#catat": "hari", "#piring": "makan", "#latihan": "latihan", "#progres": "progres", "#profil": "profil" };
 
 export default function App() {
   const account = useAccount();
@@ -71,6 +80,7 @@ export default function App() {
   const [view, setView] = useState<"app" | "new" | "edit">("app");
   const [draft, setDraft] = useState<PlanInput>(DEFAULT);
   const [tab, setTab] = useState<Tab>("hari");
+  const [upsell, setUpsell] = useState<string | null>(null);
 
   useEffect(() => {
     const t = HASH_TAB[window.location.hash];
@@ -151,7 +161,7 @@ export default function App() {
           <div className="brand">
             <svg width="30" height="30" viewBox="0 0 64 64" aria-hidden>
               <path d="M8 50 q0 -34 24 -36 q24 2 24 36 q-24 7 -48 0 z" fill="#FFFDF6" stroke="#26261F" strokeWidth="4" strokeLinejoin="round" />
-              <path d="M22 34 q3 -2 6 0 M34 28 q3 -2 6 0 M30 42 q3 -2 6 0" stroke="#C2412D" strokeWidth="3.4" strokeLinecap="round" fill="none" />
+              <path d="M22 34 q3 -2 6 0 M34 28 q3 -2 6 0 M30 42 q3 -2 6 0" stroke="#F95A14" strokeWidth="3.4" strokeLinecap="round" fill="none" />
             </svg>
             Sekepal <span className="beta">beta</span>
             <small>takaran makan pakai tangan sendiri</small>
@@ -200,6 +210,10 @@ export default function App() {
             photoConsent={Boolean(me!.user.photo_consent_at)}
             onPhotoConsent={() => account.setPhotoConsent(true)}
             onPlan={() => goTab("makan")}
+            pro={me!.user.pro}
+            photoAi={me!.features.photoAi}
+            onUpsell={setUpsell}
+            onWorkout={() => goTab("latihan")}
           />
         )}
 
@@ -212,7 +226,9 @@ export default function App() {
           </>
         )}
 
-        {inApp && tab === "progres" && <Progress key={active.id} plan={plan} profileId={active.id} onWeigh={weigh} />}
+        {inApp && tab === "latihan" && <Workout key={active.id} plan={plan} profileId={active.id} pro={me!.user.pro} onUpsell={setUpsell} />}
+
+        {inApp && tab === "progres" && <Progress key={active.id} plan={plan} profileId={active.id} onWeigh={weigh} pro={me!.user.pro} />}
 
         {inApp && tab === "profil" && <Profile plan={plan} account={account} onEdit={edit} />}
 
@@ -223,6 +239,8 @@ export default function App() {
           </div>
         </footer>
       </main>
+
+      {upsell && <ProSheet feature={upsell} onClose={() => setUpsell(null)} />}
 
       {inApp && (
         <nav className="tabs-bottom" aria-label="Menu">

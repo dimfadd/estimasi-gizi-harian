@@ -126,6 +126,34 @@ const MIGRATIONS: string[] = [
      meal text not null,
      items jsonb not null,
      created_at timestamptz not null default now())`,
+
+  // 4 — Pro: aktivitas/olahraga, catat makan dari foto
+  `alter table users add column if not exists pro_until timestamptz`,
+  `create table if not exists activities (
+     id bigserial primary key,
+     profile_id bigint not null references profiles(id) on delete cascade,
+     log_date date not null,
+     kind text not null,
+     activity_id text not null,
+     sets jsonb,
+     minutes real not null default 0,
+     km real,
+     intensity text,
+     kcal real not null,
+     rest_kcal real not null default 0,
+     created_at timestamptz not null default now())`,
+  `create index if not exists activities_profile_idx on activities (profile_id, log_date)`,
+  `create table if not exists photo_ai (
+     id bigserial primary key,
+     user_id bigint not null references users(id) on delete cascade,
+     model text not null,
+     ai_items jsonb not null,
+     final_items jsonb,
+     questions jsonb,
+     input_tokens int,
+     output_tokens int,
+     created_at timestamptz not null default now())`,
+  `create index if not exists photo_ai_user_idx on photo_ai (user_id, created_at)`,
 ];
 
 let ready: Promise<void> | null = null;

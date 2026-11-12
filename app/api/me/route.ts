@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { del } from "@vercel/blob";
 import { auth } from "@/auth";
 import { sql } from "@/lib/db";
+import { proStatus } from "@/lib/server/pro";
 import { listProfiles } from "@/lib/server/profiles";
 import { api, isAdminEmail, requireUser } from "@/lib/server/session";
 
@@ -15,10 +16,11 @@ export const GET = api(async () => {
     returning email, name, image, consent_at, photo_consent_at`;
   if (!user) return NextResponse.json({ error: "Akun tidak ditemukan" }, { status: 401 });
   const profiles = await listProfiles(uid);
+  const pro = await proStatus(uid);
   return NextResponse.json({
-    user: { ...user, admin: isAdminEmail(s?.user?.email) },
+    user: { ...user, admin: isAdminEmail(s?.user?.email), pro: pro.pro, pro_until: pro.until },
     profiles,
-    features: { samples: Boolean(process.env.BLOB_READ_WRITE_TOKEN) },
+    features: { samples: Boolean(process.env.BLOB_READ_WRITE_TOKEN), photoAi: Boolean(process.env.ANTHROPIC_API_KEY) },
   });
 });
 

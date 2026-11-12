@@ -56,6 +56,12 @@ export const POST = api(async (req: Request) => {
                 kcal, protein as p, carb as c, fat as f, fiber as fb, sugar`;
     out.push(row);
   }
+  // draf dari foto: simpan versi akhir untuk mengukur seberapa jauh koreksi pengguna
+  const draft = Number(b.photoDraft);
+  if (Number.isInteger(draft) && draft > 0) {
+    const final = (items as Record<string, unknown>[]).map((x) => ({ foodId: x.foodId, amount: x.amount, fried: x.fried, sweet: x.sweet }));
+    await sql`update photo_ai set final_items = ${JSON.stringify(final)}::jsonb where id = ${draft} and user_id = ${uid}`;
+  }
   await track(uid, "log_add", { n: out.length, via: typeof b.via === "string" ? b.via.slice(0, 20) : "manual" });
   return NextResponse.json({ logs: out }, { status: 201 });
 });

@@ -93,18 +93,18 @@ export function Week({ days, target, selected, onPick }: { days: { date: string;
           <g key={d.date} onClick={() => onPick(d.date)} style={{ cursor: "pointer" }}>
             <rect x={i * bw} y={0} width={bw} height={H} fill="transparent" />
             {d.kcal > 0 ? (
-              <rect x={x} y={y(d.kcal)} width={bw * 0.6} height={H - B - y(d.kcal)} rx="3" fill={over ? "#C2412D" : sel ? "#22231E" : "#9C9A8C"} />
+              <rect x={x} y={y(d.kcal)} width={bw * 0.6} height={H - B - y(d.kcal)} rx="3" fill={over ? "#F95A14" : sel ? "#121212" : "#B5B5B2"} />
             ) : (
-              <rect x={x} y={H - B - 2} width={bw * 0.6} height={2} fill="#C7BDA8" />
+              <rect x={x} y={H - B - 2} width={bw * 0.6} height={2} fill="#CFCFCC" />
             )}
-            <text x={x + bw * 0.3} y={H - 5} textAnchor="middle" fontSize="11" fill={sel ? "#22231E" : "#8A897D"} fontWeight={sel ? 700 : 400}>
+            <text x={x + bw * 0.3} y={H - 5} textAnchor="middle" fontSize="11" fill={sel ? "#121212" : "#8A8A8A"} fontWeight={sel ? 700 : 400}>
               {dayLabel(d.date, "short")}
             </text>
           </g>
         );
       })}
-      <line x1={0} x2={W} y1={y(target)} y2={y(target)} stroke="#22231E" strokeWidth="1.2" strokeDasharray="4 3" />
-      <text x={W - 2} y={y(target) - 4} textAnchor="end" fontSize="10.5" fill="#57584F" fontFamily="var(--mono)">
+      <line x1={0} x2={W} y1={y(target)} y2={y(target)} stroke="#121212" strokeWidth="1.2" strokeDasharray="4 3" />
+      <text x={W - 2} y={y(target) - 4} textAnchor="end" fontSize="10.5" fill="#4D4D4D" fontFamily="var(--mono)">
         target {n0(target)}
       </text>
     </svg>

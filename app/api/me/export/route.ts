@@ -16,10 +16,13 @@ export const GET = api(async () => {
     select l.profile_id, to_char(l.log_date, 'YYYY-MM-DD') as date, l.meal, l.food_id, l.amount, l.fried, l.sweet,
            l.kcal, l.protein, l.carb, l.fat, l.fiber, l.sugar, l.created_at
     from food_logs l join profiles p on p.id = l.profile_id where p.user_id = ${uid} order by l.log_date, l.id`;
+  const activities = await sql`
+    select a.profile_id, to_char(a.log_date, 'YYYY-MM-DD') as date, a.kind, a.activity_id, a.sets, a.minutes, a.km, a.intensity, a.kcal, a.created_at
+    from activities a join profiles p on p.id = a.profile_id where p.user_id = ${uid} order by a.log_date, a.id`;
   const foods = await sql`select id, name, unit, kcal, protein, carb, fat, fiber from user_foods where user_id = ${uid}`;
   const favorites = await sql`select food_id from favorites where user_id = ${uid}`;
   const samples = await sql`select blob_url, log_date, meal, items, created_at from photo_samples where user_id = ${uid}`;
-  const body = JSON.stringify({ exported_at: new Date().toISOString(), user, profiles, weights, logs, foods, favorites, samples }, null, 2);
+  const body = JSON.stringify({ exported_at: new Date().toISOString(), user, profiles, weights, logs, activities, foods, favorites, samples }, null, 2);
   return new NextResponse(body, {
     headers: {
       "content-type": "application/json; charset=utf-8",

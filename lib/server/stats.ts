@@ -63,7 +63,17 @@ export async function betaStats() {
   const goals = await sql`
     select input->>'goal' as goal, count(*) as n from profiles group by 1 order by n desc`;
 
+  const [pro] = await sql`
+    select (select count(*) from users where pro_until > now()) as active,
+           (select count(distinct user_id) from events where name = 'pro_interest') as interested,
+           (select count(distinct user_id) from events where name = 'pro_view') as viewed,
+           (select count(*) from activities where created_at > now() - interval '30 days') as activities`;
+  const photos = await sql<{ ai_items: { items: { foodId: string; amount: number; fried: boolean; sweet: number }[] }; final_items: { foodId: string; amount: number; fried: boolean; sweet: number }[] | null; input_tokens: number; output_tokens: number; model: string }>`
+    select ai_items, final_items, input_tokens, output_tokens, model from photo_ai order by id desc limit 500`;
+
   return {
+    pro: { active: n(pro.active), interested: n(pro.interested), viewed: n(pro.viewed), activities: n(pro.activities) },
+    photos,
     totals: Object.fromEntries(Object.entries(totals).map(([k, v]) => [k, n(v)])),
     retention,
     daily: daily.map((d) => ({ day: String(d.day), signups: n(d.signups), active: n(d.active), logs: n(d.logs) })),

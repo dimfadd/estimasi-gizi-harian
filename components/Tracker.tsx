@@ -18,7 +18,10 @@ import {
 } from "@/lib/log";
 import { fmtAmount, plateFor, type Plan } from "@/lib/nutrition";
 import { FoodIcon } from "./art";
+import { activityName, fmtPace } from "@/lib/activity";
 import FoodPicker, { type NewRow, type Recent } from "./FoodPicker";
+import PhotoLog, { compressPhoto } from "./PhotoLog";
+import { ProBadge } from "./Pro";
 import { dayLabel, Meter, n0, Week } from "./TrackerParts";
 import { call } from "./useAccount";
 
@@ -33,6 +36,25 @@ interface LogRow extends Nutrients {
   sugar: number;
 }
 
+export interface ActivityRow {
+  id: number | string;
+  date: string;
+  kind: "gym" | "cardio";
+  activity_id: string;
+  sets: { kg: number; reps: number }[] | null;
+  minutes: number;
+  km: number | null;
+  intensity: string | null;
+  kcal: number;
+  rest_kcal: number;
+}
+
+/** Tambahan jatah makan dari olahraga yang melebihi rata-rata yang sudah ada di target. */
+export function exerciseBonus(acts: ActivityRow[], allowance: number) {
+  const net = acts.reduce((s, a) => s + Number(a.kcal) - Number(a.rest_kcal), 0);
+  return { burned: acts.reduce((s, a) => s + Number(a.kcal), 0), net, bonus: Math.max(0, Math.round(net - allowance)) };
+}
+
 interface CustomRow {
   id: string;
   name: string;
@@ -42,17 +64,6 @@ interface CustomRow {
   carb: number;
   fat: number;
   fiber: number;
-}
-
-/** Kecilkan foto di browser sebelum diunggah (±1280 px, JPEG). */
-async function compress(file: File): Promise<Blob> {
-  const img = await createImageBitmap(file);
-  const k = Math.min(1, 1280 / Math.max(img.width, img.height));
-  const c = document.createElement("canvas");
-  c.width = Math.round(img.width * k);
-  c.height = Math.round(img.height * k);
-  c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
-  return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("Gagal memproses foto"))), "image/jpeg", 0.82));
 }
 
 function PhotoSample({
@@ -76,7 +87,7 @@ function PhotoSample({
     setState("busy");
     try {
       const fd = new FormData();
-      fd.set("photo", new File([await compress(file)], "piring.jpg", { type: "image/jpeg" }));
+      fd.set("photo", new File([await compressPhoto(file)], "piring.jpg", { type: "image/jpeg" }));
       fd.set("profile", profileId);
       fd.set("date", date);
       fd.set("meal", meal);
@@ -150,6 +161,10 @@ export default function Tracker({
   photoConsent,
   onPhotoConsent,
   onPlan,
+  pro,
+  photoAi,
+  onUpsell,
+  onWorkout,
 }: {
   plan: Plan;
   profileId: string;
@@ -157,6 +172,10 @@ export default function Tracker({
   photoConsent: boolean;
   onPhotoConsent: () => Promise<void>;
   onPlan?: () => void;
+  pro: boolean;
+  photoAi: boolean;
+  onUpsell: (feature: string) => void;
+  onWorkout: () => void;
 }) {
   const [date, setDate] = useState(() => localDate());
   const [slot, setSlot] = useState<MealSlot>(() => slotForHour(new Date().getHours()));
@@ -164,6 +183,7 @@ export default function Tracker({
   const [recent, setRecent] = useState<Recent[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [customs, setCustoms] = useState<CustomRow[]>([]);
+  const [acts, setActs] = useState<ActivityRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [note, setNote] = useState("");
@@ -189,6 +209,11 @@ export default function Tracker({
     loadLogs();
   }, [loadLogs]);
   useEffect(() => {
+    if (!pro) return;
+    const qs = new URLSearchParams({ profile: profileId, from, to: date });
+    call<{ activities: ActivityRow[] }>(`/api/activities?${qs}`).then((d) => setActs(d.activities), () => {});
+  }, [pro, profileId, from, date]);
+  useEffect(() => {
     loadRecent();
   }, [loadRecent]);
   useEffect(() => {
@@ -199,14 +224,14 @@ export default function Tracker({
   const items: LogItem[] = useMemo(() => [...LOG_ITEMS, ...customs.map(customItem)], [customs]);
   const byId = useMemo(() => Object.fromEntries(items.map((i) => [i.id, i])), [items]);
 
-  const addRows = async (rows: NewRow[], meal: MealSlot = slot, via = "manual") => {
+  const addRows = async (rows: NewRow[], meal: MealSlot = slot, via = "manual", photoDraft?: string) => {
     if (rows.length === 0) return false;
     setBusy(true);
     setErr("");
     try {
       const { logs: added } = await call<{ logs: LogRow[] }>("/api/logs", {
         method: "POST",
-        json: { profile: profileId, date, meal, via, items: rows },
+        json: { profile: profileId, date, meal, via, items: rows, photoDraft },
       });
       setLogs((xs) => [...xs, ...added]);
       if (rows.some((r) => r.foodId !== "air")) loadRecent();
@@ -280,6 +305,9 @@ export default function Tracker({
   };
 
   const today = logs.filter((l) => l.date === date);
+  const todayActs = acts.filter((a) => a.date === date);
+  const ex = exerciseBonus(todayActs, plan.exerciseAllowanceKcal);
+  const target = plan.targetKcal + ex.bonus;
   const total = sumNutrients(today);
   const water = today.filter((l) => l.food_id === "air");
   const waterGlasses = water.reduce((s, l) => s + Number(l.amount), 0);
@@ -332,7 +360,34 @@ export default function Tracker({
               </button>
             </div>
 
-            <Meter big label="Kalori" value={total.kcal} target={plan.targetKcal} unit="kkal" color="var(--ink)" kind="limit" />
+            <Meter big label="Kalori" value={total.kcal} target={target} unit="kkal" color="var(--ink)" kind="limit" />
+            {pro ? (
+              <button type="button" className="act-sum" onClick={onWorkout}>
+                <span>
+                  <b>Olahraga</b>{" "}
+                  {todayActs.length === 0
+                    ? "belum ada hari ini"
+                    : todayActs
+                        .map((a) =>
+                          a.kind === "cardio" && a.km
+                            ? `${activityName(a.kind, a.activity_id)} ${Number(a.km).toLocaleString("id-ID")} km · ${fmtPace(Number(a.minutes) / Number(a.km))}/km`
+                            : activityName(a.kind, a.activity_id),
+                        )
+                        .join(", ")}
+                </span>
+                <span className="num">
+                  {ex.burned > 0 ? `${n0(ex.burned)} kkal` : "+ catat"}
+                  {ex.bonus > 0 && <em> · jatah +{n0(ex.bonus)}</em>}
+                </span>
+              </button>
+            ) : (
+              <button type="button" className="act-sum locked-row" onClick={() => onUpsell("olahraga")}>
+                <span>
+                  <b>Olahraga</b> lari, gym, sepeda ikut menambah jatah makan
+                </span>
+                <ProBadge />
+              </button>
+            )}
             <Meter label="Protein" value={total.p} target={plan.proteinG} unit="g" color="var(--mac-p)" kind="goal" />
             <Meter label="Serat" value={total.fb} target={plan.fiberG} unit="g" color="var(--leaf)" kind="goal" />
             <div className="meter-pair">
@@ -390,6 +445,15 @@ export default function Tracker({
                     Makan sesuai rencana
                   </button>
                 )}
+                <PhotoLog
+                  pro={pro}
+                  enabled={photoAi}
+                  profileId={profileId}
+                  handScale={plan.handScale}
+                  slotLabel={slotLabel}
+                  onSave={(rows, draftId) => addRows(rows, slot, "photo", draftId)}
+                  onUpsell={() => onUpsell("foto")}
+                />
               </div>
               {note && <div className="status ok">{note}</div>}
 

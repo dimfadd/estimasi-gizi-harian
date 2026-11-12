@@ -379,6 +379,275 @@ const FOOD_ART: Record<string, () => ReactNode> = {
     </>
   ),
 
+  /* buah */
+  jeruk: () => (
+    <>
+      <circle cx="32" cy="36" r="22" fill="#F39A1E" {...line} />
+      {[
+        [24, 30],
+        [38, 28],
+        [30, 42],
+        [42, 40],
+        [20, 40],
+      ].map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r="1.3" fill="#D97A0B" />
+      ))}
+      <path d="M32 14 v-5" {...line} />
+      <path d="M33 11 q8 -7 15 -2 q-7 7 -15 2 z" fill="#5E9B4D" {...line} />
+    </>
+  ),
+  pepaya: () => (
+    <>
+      <path d="M10 22 q22 -16 44 0 q4 26 -22 34 q-26 -8 -22 -34 z" fill="#F08A2E" {...line} />
+      <path d="M16 24 q16 -10 32 0 q2 18 -16 24 q-18 -6 -16 -24 z" fill="#F7B267" />
+      <ellipse cx="32" cy="32" rx="8" ry="10" fill="#FCD9A8" />
+      {[
+        [29, 28],
+        [34, 30],
+        [30, 34],
+        [35, 36],
+        [32, 39],
+      ].map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r="1.8" fill="#26261F" />
+      ))}
+    </>
+  ),
+  semangka: () => (
+    <>
+      <path d="M6 22 h52 q-2 30 -26 32 q-24 -2 -26 -32 z" fill="#3E8E41" {...line} />
+      <path d="M10 22 h44 q-3 25 -22 27 q-19 -2 -22 -27 z" fill="#F4F1EA" />
+      <path d="M13 22 h38 q-3 21 -19 23 q-16 -2 -19 -23 z" fill="#E84855" />
+      <path d="M6 22 h52" {...line} />
+      {[
+        [22, 28],
+        [32, 32],
+        [42, 28],
+        [27, 37],
+        [37, 37],
+      ].map(([x, y], i) => (
+        <ellipse key={i} cx={x} cy={y} rx="1.2" ry="2" fill="#26261F" />
+      ))}
+    </>
+  ),
+  melon: () => (
+    <>
+      <path d="M6 24 h52 q-2 28 -26 30 q-24 -2 -26 -30 z" fill="#C9D98B" {...line} />
+      <path d="M11 24 h42 q-3 23 -21 25 q-18 -2 -21 -25 z" fill="#B8DE7C" />
+      <path d="M20 24 h24 q-2 12 -12 13 q-10 -1 -12 -13 z" fill="#E9EFC2" />
+      <path d="M6 24 h52" {...line} />
+      <path d="M12 34 q6 -4 10 2 M42 36 q6 -6 10 -2" stroke="#A9B862" strokeWidth="1.4" fill="none" />
+    </>
+  ),
+  mangga: () => (
+    <>
+      <path d="M14 30 q2 -18 22 -18 q18 2 20 18 q2 20 -20 24 q-24 2 -22 -24 z" fill="#F2B43C" {...line} />
+      <path d="M40 16 q6 6 8 18" stroke="#E0832A" strokeWidth="3" strokeLinecap="round" fill="none" opacity="0.7" />
+      <path d="M30 13 v-5" {...line} />
+      <path d="M31 9 q-10 -6 -16 0 q8 6 16 0 z" fill="#5E9B4D" {...line} />
+    </>
+  ),
+  nanas: () => (
+    <>
+      <path d="M32 22 l-8 -14 l6 4 l2 -8 l2 8 l6 -4 z" fill="#5E9B4D" {...line} />
+      <ellipse cx="32" cy="40" rx="15" ry="19" fill="#E8B23A" {...line} />
+      <path d="M20 30 l24 20 M20 44 l20 -18 M24 52 l18 -16 M22 36 l18 16 M26 24 l14 12 M24 24 l-4 4" stroke="#B9861E" strokeWidth="1.5" fill="none" />
+    </>
+  ),
+  salak: () => (
+    <>
+      <path d="M32 8 q20 14 18 30 q-2 18 -18 18 q-16 0 -18 -18 q-2 -16 18 -30 z" fill="#7A3E2B" {...line} />
+      {[
+        [26, 26],
+        [36, 26],
+        [24, 36],
+        [32, 34],
+        [40, 36],
+        [28, 46],
+        [36, 46],
+      ].map(([x, y], i) => (
+        <path key={i} d={`M${x - 3} ${y + 2} l3 -4 l3 4`} stroke="#B97A5E" strokeWidth="1.5" fill="none" />
+      ))}
+    </>
+  ),
+  anggur: () => (
+    <>
+      <path d="M32 6 v8" {...line} />
+      <path d="M33 10 q10 -6 16 0 q-8 6 -16 0 z" fill="#5E9B4D" {...line} />
+      {[
+        [24, 20],
+        [32, 20],
+        [40, 20],
+        [20, 30],
+        [28, 30],
+        [36, 30],
+        [44, 30],
+        [24, 40],
+        [32, 40],
+        [40, 40],
+        [28, 50],
+        [36, 50],
+        [32, 58],
+      ].map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r="5.5" fill="#7B4FA0" {...thin} />
+      ))}
+    </>
+  ),
+  alpukat: () => (
+    <>
+      <path d="M32 6 q14 4 16 22 q4 26 -16 30 q-20 -4 -16 -30 q2 -18 16 -22 z" fill="#3E6B34" {...line} />
+      <path d="M32 12 q10 4 11 18 q3 20 -11 23 q-14 -3 -11 -23 q1 -14 11 -18 z" fill="#C9DB7E" />
+      <circle cx="32" cy="38" r="8" fill="#8A5A3B" {...thin} />
+    </>
+  ),
+  jambu_biji: () => (
+    <>
+      <circle cx="32" cy="36" r="22" fill="#9CC75A" {...line} />
+      <circle cx="32" cy="36" r="16" fill="#F28B8B" />
+      {[
+        [26, 32],
+        [36, 30],
+        [30, 40],
+        [38, 40],
+        [33, 35],
+      ].map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r="1.4" fill="#F6E7C8" />
+      ))}
+      <path d="M32 14 v-5" {...line} />
+    </>
+  ),
+  buah_naga: () => (
+    <>
+      <ellipse cx="32" cy="36" rx="18" ry="21" fill="#E2367C" {...line} />
+      <ellipse cx="32" cy="38" rx="12" ry="14" fill="#F7F5F2" />
+      {Array.from({ length: 14 }, (_, i) => (
+        <circle key={i} cx={24 + (i % 4) * 5.5} cy={29 + Math.floor(i / 4) * 5.5} r="0.9" fill="#26261F" />
+      ))}
+      <path d="M18 24 l-8 -6 l12 2 M46 24 l8 -6 l-12 2 M32 15 l0 -8" stroke="#6E9F4C" strokeWidth="3" strokeLinecap="round" fill="none" />
+    </>
+  ),
+  rambutan: () => (
+    <>
+      {Array.from({ length: 18 }, (_, i) => {
+        const a = (i / 18) * Math.PI * 2;
+        return <path key={i} d={`M${32 + Math.cos(a) * 18} ${34 + Math.sin(a) * 18} q${Math.cos(a + 0.6) * 6} ${Math.sin(a + 0.6) * 6} ${Math.cos(a) * 8} ${Math.sin(a) * 8}`} stroke="#4C8A3E" strokeWidth="2" strokeLinecap="round" fill="none" />;
+      })}
+      <circle cx="32" cy="34" r="18" fill="#D2363A" {...line} />
+      <circle cx="26" cy="28" r="4" fill="#E86A6D" />
+    </>
+  ),
+  kelengkeng: () => (
+    <>
+      <path d="M32 6 q-2 10 -10 16 M32 6 q2 10 10 16 M32 6 v20" {...thin} fill="none" />
+      {[
+        [20, 30],
+        [34, 28],
+        [44, 38],
+        [26, 44],
+        [38, 50],
+      ].map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r="8" fill="#C9A26B" {...thin} />
+      ))}
+    </>
+  ),
+  manggis: () => (
+    <>
+      <circle cx="32" cy="38" r="20" fill="#5B2245" {...line} />
+      <path d="M20 22 q12 -10 24 0 q-12 6 -24 0 z" fill="#5E9B4D" {...line} />
+      <path d="M32 18 v-8" {...line} />
+      <circle cx="26" cy="32" r="3" fill="#7E3A62" />
+    </>
+  ),
+  durian: () => (
+    <>
+      {Array.from({ length: 14 }, (_, i) => {
+        const a = (i / 14) * Math.PI * 2;
+        const x = 32 + Math.cos(a) * 20,
+          y = 36 + Math.sin(a) * 18;
+        return <path key={i} d={`M${x - 3} ${y} l${Math.cos(a) * 6} ${Math.sin(a) * 6} l${3 - Math.cos(a) * 0} 0`} fill="#8C9A3C" {...thin} />;
+      })}
+      <ellipse cx="32" cy="36" rx="20" ry="18" fill="#9DAA45" {...line} />
+      {[
+        [24, 30],
+        [34, 28],
+        [42, 36],
+        [28, 42],
+        [38, 44],
+        [22, 38],
+      ].map(([x, y], i) => (
+        <path key={i} d={`M${x - 2.5} ${y + 2} l2.5 -5 l2.5 5 z`} fill="#6F7C2A" />
+      ))}
+      <path d="M32 18 v-10" {...line} />
+    </>
+  ),
+  kurma: () => (
+    <>
+      <ellipse cx="22" cy="34" rx="10" ry="16" transform="rotate(-20 22 34)" fill="#7A3E1E" {...line} />
+      <ellipse cx="42" cy="34" rx="10" ry="16" transform="rotate(20 42 34)" fill="#8E4B26" {...line} />
+      <path d="M18 26 q4 8 2 16 M44 26 q-4 8 -2 16" stroke="#A9653A" strokeWidth="1.6" fill="none" />
+    </>
+  ),
+  stroberi: () => (
+    <>
+      <path d="M12 24 q20 -8 40 0 q-2 22 -20 34 q-18 -12 -20 -34 z" fill="#E23D45" {...line} />
+      {[
+        [22, 30],
+        [32, 28],
+        [42, 30],
+        [26, 38],
+        [36, 38],
+        [31, 46],
+      ].map(([x, y], i) => (
+        <ellipse key={i} cx={x} cy={y} rx="1" ry="1.6" fill="#F7D96B" />
+      ))}
+      <path d="M16 22 l8 -8 l6 6 l2 -10 l2 10 l6 -6 l8 8 q-16 6 -32 0 z" fill="#5E9B4D" {...line} />
+    </>
+  ),
+
+  /* sayur tunggal */
+  tomat: () => (
+    <>
+      <circle cx="32" cy="36" r="20" fill="#E23D3D" {...line} />
+      <path d="M22 18 l10 6 l10 -6 l-4 8 l-6 -2 l-6 2 z" fill="#5E9B4D" {...line} />
+      <path d="M22 30 q-2 6 0 10" stroke="#F28B8B" strokeWidth="3" strokeLinecap="round" fill="none" />
+    </>
+  ),
+  timun: () => (
+    <>
+      <rect x="6" y="24" width="52" height="18" rx="9" transform="rotate(-20 32 33)" fill="#4C8A3E" {...line} />
+      {[
+        [18, 36],
+        [28, 32],
+        [38, 28],
+        [46, 26],
+      ].map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r="1.3" fill="#A9CF7A" />
+      ))}
+      <ellipse cx="54" cy="24" rx="4" ry="8" transform="rotate(-20 54 24)" fill="#D8EBB5" {...thin} />
+    </>
+  ),
+  wortel: () => (
+    <>
+      <path d="M44 14 l-34 38 q-2 2 0 3 q2 1 4 -1 l36 -34 z" fill="#F08A2E" {...line} />
+      <path d="M22 40 l5 4 M30 32 l5 4 M37 24 l4 3" stroke="#C9661A" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M46 16 q2 -12 10 -10 M48 18 q10 -6 12 2 M46 16 q-6 -10 2 -12" stroke="#4C8A3E" strokeWidth="3" strokeLinecap="round" fill="none" />
+    </>
+  ),
+  brokoli: () => (
+    <>
+      <path d="M28 58 l2 -20 h4 l2 20 z" fill="#8DBF5A" {...line} />
+      {[
+        [20, 30, 10],
+        [32, 22, 11],
+        [44, 30, 10],
+        [32, 34, 9],
+      ].map(([x, y, r], i) => (
+        <circle key={i} cx={x} cy={y} r={r} fill="#3E7D32" {...line} />
+      ))}
+      <circle cx="28" cy="22" r="2" fill="#5E9B4D" />
+      <circle cx="18" cy="28" r="2" fill="#5E9B4D" />
+    </>
+  ),
+
   /* minuman */
   teh: () => FOOD_ART.es_teh(),
   kopi: () => (

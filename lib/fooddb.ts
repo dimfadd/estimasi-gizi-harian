@@ -44,6 +44,11 @@ const GROUP_ICON: Record<LogGroup, string> = {
   buatanku: "piring_isi",
 };
 
+const OWN_ICON = new Set([
+  "apel", "jeruk", "pepaya", "semangka", "melon", "mangga", "nanas", "salak", "anggur", "alpukat", "jambu_biji",
+  "buah_naga", "rambutan", "kelengkeng", "manggis", "durian", "kurma", "stroberi", "tomat", "timun", "wortel", "brokoli",
+]);
+
 const x = (id: string, name: string, group: LogGroup, unit: string, kcal: number, p: number, c: number, f: number, fb: number, o: Opt = {}): DbFood => ({
   id,
   name,
@@ -60,7 +65,8 @@ const x = (id: string, name: string, group: LogGroup, unit: string, kcal: number
   fryable: o.fry ?? false,
   sweetable: o.sweet ?? false,
   aka: o.aka ?? "",
-  icon: o.icon ?? GROUP_ICON[group],
+  // buah & beberapa sayur punya gambar sendiri dengan nama yang sama dengan id-nya
+  icon: o.icon ?? (OWN_ICON.has(id) ? id : GROUP_ICON[group]),
 });
 
 export const FOOD_DB: DbFood[] = [

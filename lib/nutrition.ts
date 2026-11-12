@@ -69,6 +69,8 @@ export interface Plan {
   bmr: number;
   activityFactor: number;
   tdee: number;
+  /** rata-rata kalori olahraga per hari yang sudah termasuk di tdee */
+  exerciseAllowanceKcal: number;
   targetKcal: number;
   /** negatif = defisit, positif = surplus */
   deltaKcal: number;
@@ -356,6 +358,7 @@ export function buildPlan(input: PlanInput): Plan {
     bmr: Math.round(bmr),
     activityFactor: af,
     tdee: Math.round(tdee),
+    exerciseAllowanceKcal: Math.round((af - WORK_BASE[input.work]) * bmr),
     targetKcal,
     deltaKcal: Math.round(delta),
     weeklyChangeKg,

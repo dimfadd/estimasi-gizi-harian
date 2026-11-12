@@ -3,9 +3,9 @@
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { bmiCategory, bmiOf, bodyFatEstimate, type Plan } from "@/lib/nutrition";
-import type { BodyShape } from "./Body3D";
+import type { BodyShape } from "./Mannequin3D";
 
-const Body3D = dynamic(() => import("./Body3D"), {
+const Mannequin3D = dynamic(() => import("./Mannequin3D"), {
   ssr: false,
   loading: () => <div className="body-canvas" />,
 });
@@ -29,7 +29,7 @@ export default function BodyPanel({ plan, compact }: { plan: Plan; compact?: boo
   return (
     <div className={`card body-panel${compact ? " compact" : ""}`}>
       <div className="body-canvas">
-        <Body3D shape={shape} />
+        <Mannequin3D shape={shape} autoRotate />
         <span className="tag">
           {t < 0.02 ? "sekarang" : t > 0.98 ? "target" : "menuju target"} · {c1(lerp(input.weightKg, plan.targetWeightKg))} kg
         </span>

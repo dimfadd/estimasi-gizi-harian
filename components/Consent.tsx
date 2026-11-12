@@ -9,7 +9,7 @@ export default function Consent({ onAgree, email }: { onAgree: () => Promise<voi
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   return (
-    <main className="wrap consent">
+    <div className="wrap consent">
       <div className="card consent-card">
         <h1>Sebelum mulai</h1>
         <p>Sekepal akan menyimpan data berikut di akun {email}:</p>
@@ -51,6 +51,6 @@ export default function Consent({ onAgree, email }: { onAgree: () => Promise<voi
         </div>
         {err && <div className="status err">{err}</div>}
       </div>
-    </main>
+    </div>
   );
 }
