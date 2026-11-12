@@ -158,8 +158,8 @@ export default function App() {
     <div className="brand">
       <span className="brand-mark" aria-hidden>
         <svg width="22" height="22" viewBox="0 0 64 64">
-          <path d="M8 50 q0 -34 24 -36 q24 2 24 36 q-24 7 -48 0 z" fill="#1A0E07" />
-          <path d="M22 34 q3 -2 6 0 M34 28 q3 -2 6 0 M30 42 q3 -2 6 0" stroke="#FFB27A" strokeWidth="4" strokeLinecap="round" fill="none" />
+          <path d="M8 50 q0 -34 24 -36 q24 2 24 36 q-24 7 -48 0 z" fill="#FFFFFF" />
+          <path d="M22 34 q3 -2 6 0 M34 28 q3 -2 6 0 M30 42 q3 -2 6 0" stroke="#F05A14" strokeWidth="4" strokeLinecap="round" fill="none" />
         </svg>
       </span>
       <span className="brand-text">

@@ -9,13 +9,13 @@ export const metadata: Metadata = {
   description:
     "Hitung kebutuhan kalori & protein harian, lalu terjemahkan jadi kepal nasi, telapak lauk, dan ibu jari minyak. Tanpa timbangan.",
   applicationName: "Sekepal",
-  appleWebApp: { capable: true, title: "Sekepal", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "Sekepal", statusBarStyle: "default" },
   icons: { apple: "/apple-touch-icon.png" },
   formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0C0A09",
+  themeColor: "#FFFFFF",
   width: "device-width",
   initialScale: 1,
 };
