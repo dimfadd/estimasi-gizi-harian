@@ -126,13 +126,25 @@ function CardioForm({ bodyKg, onSave, busy }: { bodyKg: number; onSave: (b: Reco
         }
       }}
     >
-      <div className="act-chips" role="group" aria-label="Aktivitas">
-        {CARDIO.map((c) => (
-          <button key={c.id} type="button" aria-pressed={c.id === id} onClick={() => setId(c.id)}>
-            {c.name}
-          </button>
-        ))}
-      </div>
+      <label>
+        <span className="label">Aktivitas</span>
+        <select className="text-input" value={id} onChange={(e) => setId(e.target.value)}>
+          <optgroup label="Dengan jarak">
+            {CARDIO.filter((c) => c.distance).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Dengan durasi">
+            {CARDIO.filter((c) => !c.distance).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </optgroup>
+        </select>
+      </label>
       <div className="act-grid">
         {a.distance && (
           <label>
