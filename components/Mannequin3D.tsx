@@ -287,7 +287,7 @@ export default function Mannequin3D({
   }
   return (
     <Canvas shadows dpr={[1, 2]} camera={{ position: cam, fov: 32 }} gl={{ antialias: true, preserveDrawingBuffer: true }} key={`${tall}-${view}-${lying}`}>
-      <color attach="background" args={["#ECECEA"]} />
+      <color attach="background" args={["#15110F"]} />
       <hemisphereLight args={["#ffffff", "#b5b5b0", 1.15]} />
       <directionalLight position={[2.5, 4, 3]} intensity={1.5} />
       <directionalLight position={[-3, 2, -2]} intensity={0.45} color="#dfe8ff" />

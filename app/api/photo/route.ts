@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 import * as z from "zod/v4";
 import { sql } from "@/lib/db";
 import { FOOD_DB } from "@/lib/fooddb";
@@ -8,7 +9,7 @@ import { handScaleOf } from "@/lib/nutrition";
 import { track } from "@/lib/server/events";
 import { requirePro } from "@/lib/server/pro";
 import { profileInput } from "@/lib/server/profiles";
-import { api, HttpError, requireProfile, requireUser } from "@/lib/server/session";
+import { api, HttpError, isAdminEmail, requireProfile, requireUser } from "@/lib/server/session";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -18,13 +19,11 @@ const MODEL = process.env.PHOTO_MODEL || "claude-opus-5-5";
 const DAILY_LIMIT = 20;
 const MAX_BYTES = 4 * 1024 * 1024;
 
-const IDS = FOOD_DB.map((f) => f.id) as [string, ...string[]];
-
 const Draft = z.object({
   items: z
     .array(
       z.object({
-        food_id: z.enum(IDS),
+        food_id: z.string().describe("food_id persis dari katalog"),
         amount: z.number(),
         fried: z.boolean(),
         sweet: z.number().int(),
@@ -77,7 +76,7 @@ export const POST = api(async (req: Request) => {
   const handInfo = `Ukuran tangan pengguna: 1 kepal ≈ ${Math.round(150 * k)} g nasi / ${Math.round(90 * k)} g sayur, 1 telapak ≈ ${Math.round(100 * k)} g lauk matang, 1 genggam ≈ ${Math.round(40 * k)} g, 1 ibu jari ≈ 1 sdm minyak. 1 gelas = 250 ml.`;
 
   const data = Buffer.from(await photo.arrayBuffer()).toString("base64");
-  const client = new Anthropic();
+  const client = new Anthropic({ timeout: 50_000, maxRetries: 1 });
   let res;
   try {
     res = await client.beta.messages.parse({
@@ -99,15 +98,16 @@ export const POST = api(async (req: Request) => {
     });
   } catch (e) {
     console.error("photo ai", e);
-    if (e instanceof Anthropic.RateLimitError) throw new HttpError(429, "Server foto sedang sibuk, coba lagi sebentar.");
-    if (e instanceof Anthropic.APIError) throw new HttpError(502, "Gagal membaca foto. Coba lagi atau catat manual.");
-    throw e;
+    throw await explain(e);
   }
 
   if (res.stop_reason === "refusal" || !res.parsed_output) throw new HttpError(422, "Foto tidak bisa dibaca. Coba foto lain atau catat manual.");
   const out = res.parsed_output;
   const byId = Object.fromEntries(FOOD_DB.map((f) => [f.id, f]));
-  const items = out.items
+  const known = out.items.filter((it) => byId[it.food_id]);
+  // id yang tidak ada di katalog dipindah ke "tidak terdaftar" supaya tidak hilang
+  const strays = out.items.filter((it) => !byId[it.food_id]).map((it) => ({ name: it.seen_as || it.food_id, kcal: 0 }));
+  const items = known
     .filter((it) => it.amount > 0)
     .map((it) => {
       const f = byId[it.food_id];
@@ -123,7 +123,7 @@ export const POST = api(async (req: Request) => {
 
   const [row] = await sql<{ id: string }>`
     insert into photo_ai (user_id, model, ai_items, questions, input_tokens, output_tokens)
-    values (${uid}, ${res.model}, ${JSON.stringify({ items, unlisted: out.unlisted })}::jsonb, ${JSON.stringify(out.questions)}::jsonb,
+    values (${uid}, ${res.model}, ${JSON.stringify({ items, unlisted: [...out.unlisted, ...strays] })}::jsonb, ${JSON.stringify(out.questions)}::jsonb,
             ${res.usage.input_tokens}, ${res.usage.output_tokens})
     returning id`;
   await track(uid, "photo_ai", { n: items.length });
@@ -131,9 +131,30 @@ export const POST = api(async (req: Request) => {
   return NextResponse.json({
     draftId: row.id,
     items,
-    unlisted: out.unlisted.slice(0, 5),
+    unlisted: [...out.unlisted, ...strays].slice(0, 5),
     questions: out.questions.slice(0, 3),
     note: out.note,
     left: DAILY_LIMIT - Number(n) - 1,
   });
 });
+
+/** Terjemahkan error API jadi pesan yang bisa ditindaklanjuti. Admin juga melihat detail aslinya. */
+async function explain(e: unknown): Promise<HttpError> {
+  if (!(e instanceof Anthropic.APIError)) {
+    return new HttpError(504, "Server foto tidak merespons. Coba lagi sebentar.");
+  }
+  const raw = String(e.message ?? "");
+  let msg = "Gagal membaca foto. Coba lagi atau catat manual.";
+  let status = 502;
+  if (e instanceof Anthropic.AuthenticationError) msg = "API key Anthropic tidak valid. Periksa ANTHROPIC_API_KEY di Vercel.";
+  else if (e instanceof Anthropic.PermissionDeniedError) msg = "API key Anthropic tidak punya akses ke model ini.";
+  else if (e instanceof Anthropic.NotFoundError) msg = `Model ${MODEL} tidak tersedia untuk API key ini. Ganti PHOTO_MODEL.`;
+  else if (e instanceof Anthropic.RateLimitError) {
+    msg = "Server foto sedang sibuk, coba lagi sebentar.";
+    status = 429;
+  } else if (/credit balance|billing|purchase credits/i.test(raw)) msg = "Saldo API Anthropic habis atau belum diisi (console.anthropic.com → Billing).";
+  else if (e.status === 529 || (e.status ?? 0) >= 500) msg = "Server AI sedang gangguan, coba lagi beberapa menit lagi.";
+  const s = await auth();
+  if (isAdminEmail(s?.user?.email)) msg += ` [admin: ${e.status ?? "?"} ${raw.slice(0, 240)}]`;
+  return new HttpError(status, msg);
+}

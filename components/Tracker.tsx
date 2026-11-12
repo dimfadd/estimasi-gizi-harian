@@ -333,7 +333,7 @@ export default function Tracker({
     <section className="section" id="catat">
       <div className="wrap">
         <div className="sec-head today-head">
-          <h2>{isToday ? "Hari ini" : dayLabel(date)}</h2>
+          <h2 className={isToday ? "sr-only" : undefined}>{isToday ? "Hari ini" : dayLabel(date)}</h2>
           {onPlan && (
             <button type="button" className="linkish" onClick={onPlan}>
               Belum tahu mau makan apa? Lihat isi piring yang disarankan

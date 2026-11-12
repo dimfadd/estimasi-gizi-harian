@@ -154,27 +154,53 @@ export default function App() {
 
   const inApp = mode === "app" && active != null;
 
+  const brand = (
+    <div className="brand">
+      <span className="brand-mark" aria-hidden>
+        <svg width="22" height="22" viewBox="0 0 64 64">
+          <path d="M8 50 q0 -34 24 -36 q24 2 24 36 q-24 7 -48 0 z" fill="#1A0E07" />
+          <path d="M22 34 q3 -2 6 0 M34 28 q3 -2 6 0 M30 42 q3 -2 6 0" stroke="#FFB27A" strokeWidth="4" strokeLinecap="round" fill="none" />
+        </svg>
+      </span>
+      <span className="brand-text">
+        <span>
+          Sekepal <span className="beta">beta</span>
+        </span>
+        <small>takaran makan pakai tangan sendiri</small>
+      </span>
+    </div>
+  );
+
   return (
-    <>
+    <div className={inApp ? "shell in-app" : "shell"}>
+      {inApp && (
+        <aside className="side" aria-label="Navigasi">
+          {brand}
+          <nav className="side-nav" aria-label="Menu">
+            {TABS.map((t) => (
+              <button key={t.key} type="button" aria-current={tab === t.key ? "page" : undefined} onClick={() => goTab(t.key)}>
+                <svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                  {t.icon}
+                </svg>
+                {t.label}
+              </button>
+            ))}
+          </nav>
+          <div className="side-card">
+            <span>Target harian {active.name}</span>
+            <strong className="num">
+              {plan.targetKcal.toLocaleString("id-ID")} <small>kkal</small>
+            </strong>
+            <em>
+              protein {plan.proteinG} g · serat {plan.fiberG} g · air {plan.waterGlasses} gelas
+            </em>
+          </div>
+        </aside>
+      )}
+      <div className="stage">
       <header className="top">
         <div className="wrap">
-          <div className="brand">
-            <svg width="30" height="30" viewBox="0 0 64 64" aria-hidden>
-              <path d="M8 50 q0 -34 24 -36 q24 2 24 36 q-24 7 -48 0 z" fill="#FFFDF6" stroke="#26261F" strokeWidth="4" strokeLinejoin="round" />
-              <path d="M22 34 q3 -2 6 0 M34 28 q3 -2 6 0 M30 42 q3 -2 6 0" stroke="#F95A14" strokeWidth="3.4" strokeLinecap="round" fill="none" />
-            </svg>
-            Sekepal <span className="beta">beta</span>
-            <small>takaran makan pakai tangan sendiri</small>
-          </div>
-          {inApp && (
-            <nav className="tabs-top" aria-label="Menu">
-              {TABS.map((t) => (
-                <button key={t.key} type="button" aria-current={tab === t.key ? "page" : undefined} onClick={() => goTab(t.key)}>
-                  {t.label}
-                </button>
-              ))}
-            </nav>
-          )}
+          {brand}
           <InstallButton />
         </div>
       </header>
@@ -182,7 +208,9 @@ export default function App() {
         <ProfileBar profiles={me.profiles} activeId={account.activeId} onPick={pick} onNew={newProfile} disabled={mode === "new"} />
       )}
 
-      <main className={inApp ? "with-nav" : ""}>
+      {inApp && tab === "hari" && <PageHead name={active.name} />}
+
+      <main className={inApp ? "with-nav page-in" : ""} key={inApp ? tab : mode}>
         {mode === "loading" && (
           <div className="wrap section" aria-busy>
             {account.error ? <div className="status err">{account.error}</div> : <p className="fine">Memuat…</p>}
@@ -239,6 +267,7 @@ export default function App() {
           </div>
         </footer>
       </main>
+      </div>
 
       {upsell && <ProSheet feature={upsell} onClose={() => setUpsell(null)} />}
 
@@ -254,6 +283,19 @@ export default function App() {
           ))}
         </nav>
       )}
-    </>
+    </div>
+  );
+}
+
+function PageHead({ name }: { name: string }) {
+  const now = new Date();
+  const h = now.getHours();
+  const greet = h < 11 ? "Selamat pagi" : h < 15 ? "Selamat siang" : h < 18 ? "Selamat sore" : "Selamat malam";
+  return (
+    <div className="page-head wrap">
+      <span className="page-date">{now.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long" })}</span>
+      <h1>{`${greet}, ${name.split(" ")[0]}`}</h1>
+      <p>Catat yang kamu makan, lihat sisa jatah hari ini.</p>
+    </div>
   );
 }
